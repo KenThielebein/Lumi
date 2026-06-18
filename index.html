@@ -1,0 +1,672 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lumi herunterladen und einrichten</title>
+  <meta name="description" content="Lumi ist ein kleiner Windows-KI-Assistent fuer Spracheingabe, Diktat und Textbearbeitung per Win+J.">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #152029;
+      --muted: #5f6d78;
+      --line: #d9e1e7;
+      --paper: #f7f9fb;
+      --panel: #ffffff;
+      --teal: #157a78;
+      --teal-dark: #0c5758;
+      --amber: #c98313;
+      --coral: #c9503c;
+      --blue: #2f5d91;
+      --shadow: 0 18px 55px rgba(26, 39, 51, .14);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.5;
+      color: var(--ink);
+      background: var(--paper);
+    }
+
+    a {
+      color: var(--teal-dark);
+      text-underline-offset: 3px;
+    }
+
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: rgba(247, 249, 251, .94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(14px);
+    }
+
+    .nav {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .brand img {
+      width: 30px;
+      height: 30px;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      font-size: 15px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      min-height: 44px;
+      padding: 0 18px;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      font-weight: 700;
+      text-decoration: none;
+      white-space: nowrap;
+      transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+    }
+
+    .button:hover {
+      transform: translateY(-1px);
+    }
+
+    .button.primary {
+      color: #fff;
+      background: var(--teal-dark);
+      box-shadow: 0 10px 25px rgba(12, 87, 88, .24);
+    }
+
+    .button.secondary {
+      color: var(--ink);
+      background: #fff;
+      border-color: var(--line);
+    }
+
+    main {
+      overflow: hidden;
+    }
+
+    .hero {
+      min-height: calc(100svh - 64px);
+      display: grid;
+      align-items: center;
+      padding: 64px 0 56px;
+      background: #f7f9fb url("assets/lumi.ico") right 9vw center / 220px 220px no-repeat;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .hero-inner {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1.04fr) minmax(320px, .96fr);
+      align-items: center;
+      gap: 52px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 18px;
+      font-size: 14px;
+      font-weight: 750;
+      color: var(--teal-dark);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    h1 {
+      font-size: clamp(46px, 8vw, 94px);
+      max-width: 780px;
+    }
+
+    h2 {
+      font-size: clamp(30px, 4vw, 48px);
+      margin-bottom: 18px;
+    }
+
+    h3 {
+      font-size: 21px;
+      margin-bottom: 10px;
+    }
+
+    p {
+      margin: 0;
+    }
+
+    .lead {
+      max-width: 720px;
+      margin-top: 22px;
+      font-size: clamp(18px, 2vw, 23px);
+      color: var(--muted);
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 32px;
+    }
+
+    .hero-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .product-visual {
+      display: grid;
+      gap: 18px;
+      align-content: center;
+    }
+
+    .pill-demo {
+      border: 1px solid rgba(21, 32, 41, .12);
+      border-radius: 999px;
+      background: rgba(21, 32, 41, .92);
+      color: #fff;
+      box-shadow: var(--shadow);
+      min-height: 112px;
+      padding: 20px 28px;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 18px;
+    }
+
+    .pill-mark {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: #f4c542;
+      display: grid;
+      place-items: center;
+      color: #18212a;
+      font-weight: 900;
+      box-shadow: inset 0 -5px 0 rgba(21, 32, 41, .16);
+    }
+
+    .wave {
+      display: grid;
+      grid-template-columns: repeat(14, 1fr);
+      align-items: center;
+      gap: 5px;
+      height: 42px;
+    }
+
+    .wave span {
+      display: block;
+      width: 100%;
+      border-radius: 4px;
+      background: #64d6cf;
+    }
+
+    .wave span:nth-child(1), .wave span:nth-child(14) { height: 10px; }
+    .wave span:nth-child(2), .wave span:nth-child(13) { height: 18px; }
+    .wave span:nth-child(3), .wave span:nth-child(12) { height: 28px; }
+    .wave span:nth-child(4), .wave span:nth-child(11) { height: 38px; }
+    .wave span:nth-child(5), .wave span:nth-child(10) { height: 24px; }
+    .wave span:nth-child(6), .wave span:nth-child(9) { height: 34px; }
+    .wave span:nth-child(7), .wave span:nth-child(8) { height: 16px; }
+
+    .hotkey-chip {
+      min-width: 82px;
+      min-height: 42px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,.22);
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 800;
+      color: #d7f7f3;
+    }
+
+    .mini-panel {
+      width: min(460px, 92%);
+      justify-self: end;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: 0 12px 34px rgba(26, 39, 51, .1);
+    }
+
+    .mini-panel strong {
+      display: block;
+      margin-bottom: 8px;
+    }
+
+    .section {
+      padding: 84px 0;
+    }
+
+    .section.alt {
+      background: #fff;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .container {
+      width: min(1120px, calc(100% - 32px));
+      margin: 0 auto;
+    }
+
+    .intro {
+      max-width: 760px;
+      margin-bottom: 34px;
+      color: var(--muted);
+      font-size: 18px;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .grid.three {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid.two {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: 24px;
+      min-height: 100%;
+    }
+
+    .card p,
+    .card li {
+      color: var(--muted);
+    }
+
+    .label {
+      display: inline-flex;
+      min-height: 28px;
+      align-items: center;
+      padding: 0 9px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 750;
+      color: #fff;
+      background: var(--blue);
+      margin-bottom: 14px;
+    }
+
+    .label.amber { background: var(--amber); }
+    .label.coral { background: var(--coral); }
+    .label.teal { background: var(--teal); }
+
+    ol,
+    ul {
+      margin: 14px 0 0;
+      padding-left: 22px;
+    }
+
+    li + li {
+      margin-top: 8px;
+    }
+
+    code {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f4f7f9;
+      padding: 2px 6px;
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: .95em;
+      white-space: nowrap;
+    }
+
+    .steps {
+      counter-reset: setup;
+      display: grid;
+      gap: 14px;
+    }
+
+    .step {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 16px;
+      align-items: start;
+      padding: 20px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .step::before {
+      counter-increment: setup;
+      content: counter(setup);
+      width: 34px;
+      height: 34px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--ink);
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .key-panel {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .source-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    .source-list a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      text-decoration: none;
+      font-weight: 650;
+    }
+
+    .footer {
+      padding: 34px 0;
+      color: var(--muted);
+      border-top: 1px solid var(--line);
+      background: #fff;
+    }
+
+    @media (max-width: 880px) {
+      .nav {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 14px 0;
+      }
+
+      .nav-links {
+        width: 100%;
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+
+      .hero {
+        min-height: auto;
+        padding: 48px 0;
+        background: #f7f9fb url("assets/lumi.ico") right 20px top 28px / 110px 110px no-repeat;
+      }
+
+      .hero-inner,
+      .grid.three,
+      .grid.two,
+      .key-panel {
+        grid-template-columns: 1fr;
+      }
+
+      .product-visual {
+        margin-top: 8px;
+      }
+
+      .mini-panel {
+        width: 100%;
+      }
+
+      .pill-demo {
+        grid-template-columns: auto 1fr;
+      }
+
+      .hotkey-chip {
+        grid-column: 1 / -1;
+      }
+    }
+
+    @media (max-width: 540px) {
+      .nav-links {
+        gap: 12px;
+        font-size: 14px;
+      }
+
+      .hero-actions {
+        flex-direction: column;
+      }
+
+      .button {
+        width: 100%;
+      }
+
+      .pill-demo {
+        padding: 18px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <nav class="nav" aria-label="Hauptnavigation">
+      <a class="brand" href="#top" aria-label="Lumi Start">
+        <img src="assets/lumi.ico" alt="">
+        <span>Lumi</span>
+      </a>
+      <div class="nav-links">
+        <a href="#download">Download</a>
+        <a href="#start">Einrichten</a>
+        <a href="#nutzen">Nutzen</a>
+        <a href="#keys">API-Keys</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-inner">
+        <div>
+          <p class="eyebrow">Windows-Assistent per Win+J</p>
+          <h1 id="hero-title">Lumi</h1>
+          <p class="lead">Ein kleiner KI-Assistent, der im System-Tray wartet, bei Bedarf als dezente Pille erscheint und Spracheingabe, Diktat sowie Textbearbeitung direkt in deinen Alltag bringt.</p>
+          <div class="hero-actions" id="download">
+            <a class="button primary" href="https://github.com/KenThielebein/Lumi/releases/download/v.4.0.3/Lumi-4.0.3.exe" download>Download fuer Windows</a>
+            <a class="button secondary" href="#keys">API-Keys einrichten</a>
+          </div>
+          <p class="hero-note">Aktuelle Version: <strong>4.0.3</strong>. Portable EXE, ca. 156 MB. Der Download fuehrt direkt zum GitHub-Release.</p>
+        </div>
+
+        <div class="product-visual" aria-label="Lumi Overlay Vorschau">
+          <div class="pill-demo">
+            <div class="pill-mark">L</div>
+            <div class="wave" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="hotkey-chip">Win + J</div>
+          </div>
+          <div class="mini-panel">
+            <strong>Das Light-Prinzip</strong>
+            <p>So wenig UI wie moeglich, so viel KI wie noetig: keine grossen Fenster, kein Fokusdiebstahl, Mikrofon nur aktiv, wenn du Lumi wirklich aufrufst.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="start" aria-labelledby="start-title">
+      <div class="container">
+        <h2 id="start-title">In wenigen Minuten startklar</h2>
+        <p class="intro">Lumi ist eine native Windows-App. Nach dem Start erscheint sie unten rechts im System-Tray. Beim ersten Start oeffnen sich die Einstellungen, wenn noch keine API-Keys hinterlegt sind.</p>
+        <div class="steps">
+          <div class="step">
+            <div>
+              <h3>Lumi herunterladen</h3>
+              <p>Speichere die EXE und starte sie per Doppelklick. Windows kann bei neuen lokalen Builds eine Sicherheitsabfrage anzeigen.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <h3>Keys eintragen</h3>
+              <p>Hinterlege einen Groq-Key fuer Spracherkennung und einen OpenRouter-Key fuer Textglaettung und KI-Antworten.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div>
+              <h3>Mit Win+J sprechen</h3>
+              <p>Halte <code>Win + J</code>, sprich deine Frage oder dein Diktat und lasse los. Lumi verarbeitet alles im Hintergrund.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="nutzen" aria-labelledby="nutzen-title">
+      <div class="container">
+        <h2 id="nutzen-title">Was du mit Lumi machst</h2>
+        <p class="intro">Ein Hotkey, drei Modi. Der Moduswechsel passiert per Doppeltipp auf <code>Win + J</code>.</p>
+        <div class="grid three">
+          <article class="card">
+            <span class="label teal">Gespraech</span>
+            <h3>Fragen stellen</h3>
+            <p>Sprich mit Lumi wie mit einem Assistenten. Lumi transkribiert deine Sprache, glaettet den Text, fragt das Modell und liest die Antwort per Windows-Stimme vor.</p>
+          </article>
+          <article class="card">
+            <span class="label amber">Text bearbeiten</span>
+            <h3>Markierten Text umschreiben</h3>
+            <p>Markiere Text in Word, Browser oder Mail, halte <code>Win + J</code> und sage zum Beispiel: "Mach das freundlicher". Lumi ersetzt den markierten Text und stellt danach die Zwischenablage wieder her.</p>
+          </article>
+          <article class="card">
+            <span class="label coral">Diktat</span>
+            <h3>Direkt am Cursor diktieren</h3>
+            <p>Setze den Cursor an die Zielstelle, halte <code>Win + J</code> und sprich. Lumi fuegt den geglaetteten Text direkt dort ein.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="hotkeys-title">
+      <div class="container">
+        <h2 id="hotkeys-title">Die wichtigsten Tasten</h2>
+        <div class="grid two">
+          <div class="card">
+            <h3><code>Win + J</code> kurz antippen</h3>
+            <p>Aufnahme an oder aus schalten.</p>
+          </div>
+          <div class="card">
+            <h3><code>Win + J</code> halten</h3>
+            <p>Push-to-Talk: Lumi nimmt nur auf, solange du den Hotkey haeltst.</p>
+          </div>
+          <div class="card">
+            <h3><code>Win + J</code> doppelt antippen</h3>
+            <p>Zwischen Gespraechsmodus, Textbearbeitung und Diktat wechseln.</p>
+          </div>
+          <div class="card">
+            <h3><code>Esc</code></h3>
+            <p>Overlay schliessen oder eine laufende Aktion abbrechen.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section alt" id="keys" aria-labelledby="keys-title">
+      <div class="container">
+        <h2 id="keys-title">API-Keys bekommen</h2>
+        <p class="intro">Lumi speichert Keys lokal unter <code>%APPDATA%\Lumi\</code> und verschluesselt sie per Windows DPAPI. Teile Keys nie in Chats, Screenshots oder Git-Repositories.</p>
+        <div class="key-panel">
+          <article class="card">
+            <span class="label teal">Groq</span>
+            <h3>Fuer Spracherkennung</h3>
+            <ol>
+              <li>Oeffne <a href="https://console.groq.com/" target="_blank" rel="noopener">console.groq.com</a> und melde dich an.</li>
+              <li>Gehe zu <a href="https://console.groq.com/keys" target="_blank" rel="noopener">API Keys</a>.</li>
+              <li>Erstelle einen neuen Key und kopiere ihn direkt nach dem Erstellen.</li>
+              <li>Oeffne Lumi, gehe in die Einstellungen und fuege ihn im Groq-Feld ein.</li>
+            </ol>
+          </article>
+          <article class="card">
+            <span class="label amber">OpenRouter</span>
+            <h3>Fuer KI-Antworten</h3>
+            <ol>
+              <li>Oeffne <a href="https://openrouter.ai/" target="_blank" rel="noopener">openrouter.ai</a> und melde dich an.</li>
+              <li>Gehe zu <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">API Keys</a>.</li>
+              <li>Erstelle einen Key, optional mit Credit-Limit gegen unerwartete Kosten.</li>
+              <li>Oeffne Lumi, gehe in die Einstellungen und fuege ihn im OpenRouter-Feld ein.</li>
+            </ol>
+          </article>
+        </div>
+        <div class="source-list" aria-label="Offizielle Quellen">
+          <a href="https://console.groq.com/docs/quickstart" target="_blank" rel="noopener">Groq Quickstart</a>
+          <a href="https://console.groq.com/keys" target="_blank" rel="noopener">Groq API Keys</a>
+          <a href="https://openrouter.ai/docs/api/reference/authentication" target="_blank" rel="noopener">OpenRouter Authentication</a>
+          <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">OpenRouter Keys</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="privacy-title">
+      <div class="container">
+        <h2 id="privacy-title">Wichtig zu Datenschutz und Kosten</h2>
+        <div class="grid three">
+          <article class="card">
+            <h3>Mikrofon nur bei Bedarf</h3>
+            <p>Lumi nimmt nicht dauerhaft auf. Das Mikrofon ist nur aktiv, wenn du den Hotkey nutzt oder eine Aufnahme bewusst startest.</p>
+          </article>
+          <article class="card">
+            <h3>Clipboard wird wiederhergestellt</h3>
+            <p>Bei Textbearbeitung sichert Lumi die Zwischenablage, nutzt sie kurz fuer Lesen oder Einfuegen und stellt sie danach wieder her.</p>
+          </article>
+          <article class="card">
+            <h3>Niedrige laufende Kosten</h3>
+            <p>Der geplante Low-Cost-Betrieb nutzt Groq fuer STT, OpenRouter mit Kimi fuer KI und Windows SAPI fuer kostenlose Sprachausgabe.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <p>Lumi fuer Windows. Stand: 18. Juni 2026. Hinweis: <code>Win + H</code> ist die Windows-eigene Spracheingabe; Lumi nutzt deshalb standardmaessig <code>Win + J</code>.</p>
+    </div>
+  </footer>
+</body>
+</html>
