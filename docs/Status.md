@@ -13,7 +13,7 @@ Nach jeder erledigten Aufgabe:
 
 ## Aktueller Stand
 **Aktive Phase:** Phase 6 – Update-System & Release
-**Letzte Änderung:** 2026-07-14 – Version 4.5.1 mit stabilem Push-to-talk und tagbasiertem GitHub-Release-Workflow vorbereitet
+**Letzte Änderung:** 2026-07-14 – Version 4.5.1 mit stabilem Push-to-talk als Latest-Release auf GitHub veröffentlicht
 **Nächste Aufgabe:** NSIS-Installer, Win+H-Hinweis beim ersten Start, Update-Check via GitHub Releases
 
 ---
@@ -139,6 +139,7 @@ Lauffähiges WPF-Fenster als transparente "Pille", zeigt/versteckt sich per Hotk
 - [ ] GitHub Releases API: Versionscheck beim Start
 - [ ] Update-Banner in Pille / Tray
 - [x] GitHub Actions: Git-Tag `vX.Y.Z` → versionierter Build → GitHub Release mit automatisch erzeugtem Begleittext
+- [x] Version 4.5.1 über Tag `v4.5.1` veröffentlicht (EXE + Portable-ZIP + automatisch erzeugte Release Notes)
 - [x] Release-EXE (self-contained, win-x64, 156 MB) unter `src/bin/Release/.../publish/Lumi.exe`
 - [x] Statische Landingpage unter `website/index.html` mit Downloadlink, Nutzungserklärung und API-Key-Anleitung
 - [x] Landingpage für GitHub Pages vorbereitet: lokales Icon, `.nojekyll`, GitHub-Release-Downloadlink als Platzhalter
