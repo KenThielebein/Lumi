@@ -13,7 +13,7 @@ Nach jeder erledigten Aufgabe:
 
 ## Aktueller Stand
 **Aktive Phase:** Phase 6 – Update-System & Release
-**Letzte Änderung:** 2026-07-14 – Version 4.5.1 mit stabilem Push-to-talk als Latest-Release auf GitHub veröffentlicht
+**Letzte Änderung:** 2026-07-14 – GitHub-Pages-Landingpage auf Lumi 4.5.1 und automatische Latest-Release-Erkennung aktualisiert
 **Nächste Aufgabe:** NSIS-Installer, Win+H-Hinweis beim ersten Start, Update-Check via GitHub Releases
 
 ---
@@ -143,6 +143,7 @@ Lauffähiges WPF-Fenster als transparente "Pille", zeigt/versteckt sich per Hotk
 - [x] Release-EXE (self-contained, win-x64, 156 MB) unter `src/bin/Release/.../publish/Lumi.exe`
 - [x] Statische Landingpage unter `website/index.html` mit Downloadlink, Nutzungserklärung und API-Key-Anleitung
 - [x] Landingpage für GitHub Pages vorbereitet: lokales Icon, `.nojekyll`, GitHub-Release-Downloadlink als Platzhalter
+- [x] GitHub-Pages-Landingpage auf die zwei Modi und Version 4.5.1 aktualisiert; Versionsnummer, Download und Dateigröße folgen künftig automatisch dem Latest-Release
 
 ---
 
@@ -251,3 +252,4 @@ Lumi auf die beiden alltagstauglichen Kernfunktionen Diktat und Vorschlag konzen
 | 2026-07-14 | Push-to-talk endet nur per Tastenfreigabe | VAD bleibt dem Freihand-Diktat vorbehalten; nach dem ersten Key-Up stoppt das Mikrofon sofort, Tastaturaktionen warten jedoch auf die vollständige Freigabe von Win und J |
 | 2026-07-14 | Git-Tags sind die Release-Version | Tags im Format `vX.Y.Z` überschreiben die Assembly-Version beim Build und erzeugen über GitHub Actions automatisch EXE, Portable-ZIP und Release Notes |
 | 2026-07-14 | Version 4.5.1 | Stabilitätsfix für längere Push-to-talk-Diktate und tagbasierte Release-Automatik werden als Patch-Release 4.5.1 ausgeliefert |
+| 2026-07-14 | Landingpage folgt dem Latest-Release | Die GitHub-Pages-Seite liest Version, EXE-Link und Dateigröße aus der öffentlichen GitHub-Releases-API; statische 4.5.1-Werte bleiben als Offline-Fallback |
