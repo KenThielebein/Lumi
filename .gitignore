@@ -1,0 +1,24 @@
+# Build output
+src/bin/
+src/obj/
+tests/bin/
+tests/obj/
+
+# Visual Studio / Rider
+.vs/
+*.user
+*.suo
+.idea/
+*.DotSettings.user
+
+# NuGet
+*.nupkg
+*.snupkg
+
+# Secrets – niemals ins Repo!
+**/config.json
+**/*.secrets
+
+# OS
+Thumbs.db
+.DS_Store
