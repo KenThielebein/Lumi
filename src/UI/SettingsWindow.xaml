@@ -1,0 +1,489 @@
+<Window x:Class="Lumi.UI.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Lumi – Einstellungen"
+        Width="500" Height="760"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#1E1E1E"
+        Foreground="White"
+        FontFamily="Segoe UI">
+
+    <Window.Resources>
+
+        <!-- ── Text-Styles ─────────────────────────────────────────────── -->
+        <Style x:Key="Label" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#AAAAAA"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Margin" Value="0,12,0,4"/>
+        </Style>
+        <Style x:Key="Input" TargetType="TextBox">
+            <Setter Property="Background" Value="#2D2D2D"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#444"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CaretBrush" Value="White"/>
+        </Style>
+        <Style x:Key="PassInput" TargetType="PasswordBox">
+            <Setter Property="Background" Value="#2D2D2D"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderBrush" Value="#444"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+        <Style x:Key="Section" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#FFC107"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,20,0,4"/>
+        </Style>
+        <Style x:Key="ThemeBtn" TargetType="RadioButton">
+            <Setter Property="Margin" Value="0,0,8,0"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style x:Key="PrimaryBtn" TargetType="Button">
+            <Setter Property="Background" Value="#FFC107"/>
+            <Setter Property="Foreground" Value="Black"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="20,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style x:Key="SecBtn" TargetType="Button">
+            <Setter Property="Background" Value="#333"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="20,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <!-- ── ComboBox: Item-Template (Modell-Zeile) ──────────────────── -->
+        <DataTemplate x:Key="ModelItemTemplate">
+            <Grid Margin="0,1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding DisplayName}"
+                               FontSize="13" FontWeight="SemiBold" Foreground="White"/>
+                    <TextBlock Text="{Binding Id}"
+                               FontSize="10" Foreground="#777" Margin="0,1,0,0"/>
+                </StackPanel>
+                <!-- Kategorie-Badge -->
+                <Border Grid.Column="1" CornerRadius="3" Padding="5,2"
+                        Margin="8,0,0,0" VerticalAlignment="Center">
+                    <Border.Style>
+                        <Style TargetType="Border">
+                            <Setter Property="Background" Value="#333"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding Category}" Value="Günstig">
+                                    <Setter Property="Background" Value="#162016"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Category}" Value="Mittel">
+                                    <Setter Property="Background" Value="#101828"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding Category}" Value="Premium">
+                                    <Setter Property="Background" Value="#2A1A00"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Border.Style>
+                    <TextBlock Text="{Binding Category}" FontSize="10">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="#999"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Category}" Value="Günstig">
+                                        <Setter Property="Foreground" Value="#4CAF50"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Category}" Value="Mittel">
+                                        <Setter Property="Foreground" Value="#42A5F5"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding Category}" Value="Premium">
+                                        <Setter Property="Foreground" Value="#FFC107"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Border>
+                <Button Grid.Column="2"
+                        Content="x"
+                        Width="22"
+                        Height="22"
+                        Margin="6,0,0,0"
+                        Padding="0"
+                        VerticalAlignment="Center"
+                        Background="#40222222"
+                        Foreground="#CCCCCC"
+                        BorderBrush="#555"
+                        BorderThickness="1"
+                        Cursor="Hand"
+                        Tag="{Binding Id}"
+                        ToolTip="Modell aus Liste entfernen"
+                        Click="RemoveModel_Click"/>
+            </Grid>
+        </DataTemplate>
+
+        <!-- ── ComboBox: Item-Container-Style (dunkle Dropdown-Zeilen) ─── -->
+        <Style x:Key="ModelItemStyle" TargetType="ComboBoxItem">
+            <Setter Property="Padding" Value="10,7"/>
+            <Setter Property="Background" Value="#252525"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="#333"/>
+            <Style.Triggers>
+                <Trigger Property="IsHighlighted" Value="True">
+                    <Setter Property="Background" Value="#3D2F00"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </Trigger>
+                <Trigger Property="IsSelected" Value="True">
+                    <Setter Property="Background" Value="#3D2F00"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- ── ComboBox: Kategorie-Gruppenheader ──────────────────────── -->
+        <GroupStyle x:Key="ModelGroupStyle">
+            <GroupStyle.HeaderTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Name}"
+                               Background="#1A1A1A" Foreground="#666"
+                               FontSize="10" FontWeight="SemiBold"
+                               Padding="10,5,0,5"/>
+                </DataTemplate>
+            </GroupStyle.HeaderTemplate>
+        </GroupStyle>
+
+    </Window.Resources>
+
+    <Grid Margin="28">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,8">
+            <TextBlock Text="⚙" FontSize="22" Margin="0,0,10,0" VerticalAlignment="Center"/>
+            <TextBlock Text="Lumi Einstellungen" FontSize="20" FontWeight="Light" VerticalAlignment="Center"/>
+        </StackPanel>
+
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+            <StackPanel>
+
+                <!-- ── API-Keys ───────────────────────────────────────────── -->
+                <TextBlock Style="{StaticResource Section}" Text="API-KEYS"/>
+
+                <TextBlock Style="{StaticResource Label}" Text="Groq API Key (Spracherkennung)"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid Grid.Column="0">
+                        <PasswordBox x:Name="GroqKeyBox" Style="{StaticResource PassInput}"/>
+                        <TextBox x:Name="GroqKeyReveal" Style="{StaticResource Input}" Visibility="Collapsed"/>
+                    </Grid>
+                    <Button Grid.Column="1" Content="👁" Width="36" Margin="4,0,0,0"
+                            Background="#2D2D2D" Foreground="White"
+                            BorderThickness="1" BorderBrush="#444" Cursor="Hand"
+                            Click="ToggleGroqKey"/>
+                </Grid>
+
+                <TextBlock Style="{StaticResource Label}" Text="OpenRouter API Key (KI-Antworten)"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid Grid.Column="0">
+                        <PasswordBox x:Name="OpenRouterKeyBox" Style="{StaticResource PassInput}"/>
+                        <TextBox x:Name="OpenRouterKeyReveal" Style="{StaticResource Input}" Visibility="Collapsed"/>
+                    </Grid>
+                    <Button Grid.Column="1" Content="👁" Width="36" Margin="4,0,0,0"
+                            Background="#2D2D2D" Foreground="White"
+                            BorderThickness="1" BorderBrush="#444" Cursor="Hand"
+                            Click="ToggleOpenRouterKey"/>
+                </Grid>
+
+                <!-- ── Modelle ────────────────────────────────────────────── -->
+                <TextBlock Style="{StaticResource Section}" Text="MODELLE (OpenRouter)"/>
+
+                <!-- Haupt-Modell -->
+                <TextBlock Style="{StaticResource Label}" Text="Haupt-Modell (Vorschläge)"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Zeile 1: Dropdown beliebte Modelle -->
+                    <ComboBox x:Name="LlmModelCombo"
+                              Grid.Row="0" Grid.Column="0"
+                              Background="#2D2D2D" Foreground="White"
+                              BorderBrush="#444" BorderThickness="1"
+                              Padding="6,5" FontSize="13"
+                              IsEditable="True"
+                              IsReadOnly="True"
+                              TextSearch.TextPath="Id"
+                              ItemTemplate="{StaticResource ModelItemTemplate}"
+                              ItemContainerStyle="{StaticResource ModelItemStyle}"
+                              SelectionChanged="LlmModelCombo_SelectionChanged">
+                        <ComboBox.Resources>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}"        Color="#252525"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.WindowTextBrushKey}"    Color="White"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}"     Color="#3D2F00"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="White"/>
+                            <Style TargetType="{x:Type TextBox}">
+                                <Setter Property="Background" Value="#2D2D2D"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Padding" Value="2,0"/>
+                                <Setter Property="CaretBrush" Value="White"/>
+                            </Style>
+                        </ComboBox.Resources>
+                        <ComboBox.GroupStyle>
+                            <StaticResource ResourceKey="ModelGroupStyle"/>
+                        </ComboBox.GroupStyle>
+                    </ComboBox>
+                    <Border Grid.Row="0" Grid.Column="0"
+                            Margin="1,1,25,1"
+                            Padding="8,0"
+                            Background="White"
+                            IsHitTestVisible="False">
+                        <TextBlock Text="{Binding ElementName=LlmModelBox, Path=Text}"
+                                   Foreground="#111"
+                                   FontSize="13"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                    <Button Grid.Row="0" Grid.Column="1"
+                            Content="🔍" Width="36" Margin="4,0,0,0"
+                            Background="#2D2D2D" Foreground="White"
+                            BorderThickness="1" BorderBrush="#444" Cursor="Hand"
+                            ToolTip="Alle OpenRouter-Modelle mit Preisen durchsuchen"
+                            Click="PickLlmModel"/>
+
+                    <!-- Zeile 2: Aktive Modell-ID (immer sichtbar, manuell editierbar) -->
+                    <TextBox x:Name="LlmModelBox"
+                             Grid.Row="1" Grid.Column="0"
+                             Style="{StaticResource Input}"
+                             FontSize="12" Foreground="#CCC"
+                             Margin="0,3,0,0"
+                             TextChanged="LlmModelBox_TextChanged"
+                             ToolTip="Modell-ID direkt eingeben (z.B. openai/gpt-4o)"/>
+                </Grid>
+
+                <!-- Glättungs-Modell -->
+                <TextBlock Style="{StaticResource Label}"
+                           Text="Glättungs-Modell (Sprachbefehle im Vorschlagsmodus)"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <ComboBox x:Name="SmoothingModelCombo"
+                              Grid.Row="0" Grid.Column="0"
+                              Background="#2D2D2D" Foreground="White"
+                              BorderBrush="#444" BorderThickness="1"
+                              Padding="6,5" FontSize="13"
+                              IsEditable="True"
+                              IsReadOnly="True"
+                              TextSearch.TextPath="Id"
+                              ItemTemplate="{StaticResource ModelItemTemplate}"
+                              ItemContainerStyle="{StaticResource ModelItemStyle}"
+                              SelectionChanged="SmoothingModelCombo_SelectionChanged">
+                        <ComboBox.Resources>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}"        Color="#252525"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.WindowTextBrushKey}"    Color="White"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}"     Color="#3D2F00"/>
+                            <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="White"/>
+                            <Style TargetType="{x:Type TextBox}">
+                                <Setter Property="Background" Value="#2D2D2D"/>
+                                <Setter Property="Foreground" Value="White"/>
+                                <Setter Property="BorderThickness" Value="0"/>
+                                <Setter Property="Padding" Value="2,0"/>
+                                <Setter Property="CaretBrush" Value="White"/>
+                            </Style>
+                        </ComboBox.Resources>
+                        <ComboBox.GroupStyle>
+                            <StaticResource ResourceKey="ModelGroupStyle"/>
+                        </ComboBox.GroupStyle>
+                    </ComboBox>
+                    <Border Grid.Row="0" Grid.Column="0"
+                            Margin="1,1,25,1"
+                            Padding="8,0"
+                            Background="White"
+                            IsHitTestVisible="False">
+                        <TextBlock Text="{Binding ElementName=SmoothingModelBox, Path=Text}"
+                                   Foreground="#111"
+                                   FontSize="13"
+                                   VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                    </Border>
+                    <Button Grid.Row="0" Grid.Column="1"
+                            Content="🔍" Width="36" Margin="4,0,0,0"
+                            Background="#2D2D2D" Foreground="White"
+                            BorderThickness="1" BorderBrush="#444" Cursor="Hand"
+                            ToolTip="Alle OpenRouter-Modelle mit Preisen durchsuchen"
+                            Click="PickSmoothingModel"/>
+
+                    <TextBox x:Name="SmoothingModelBox"
+                             Grid.Row="1" Grid.Column="0"
+                             Style="{StaticResource Input}"
+                             FontSize="12" Foreground="#CCC"
+                             Margin="0,3,0,0"
+                             TextChanged="SmoothingModelBox_TextChanged"
+                             ToolTip="Modell-ID direkt eingeben"/>
+                </Grid>
+
+                <!-- ── Overlay-Design ────────────────────────────────────── -->
+                <TextBlock Style="{StaticResource Section}" Text="OVERLAY-DESIGN"/>
+                <TextBlock Style="{StaticResource Label}" Text="Farbthema"/>
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                    <RadioButton x:Name="ThemeDark"  Style="{StaticResource ThemeBtn}" GroupName="Theme" Content="⬛ Dunkel"   />
+                    <RadioButton x:Name="ThemeLight" Style="{StaticResource ThemeBtn}" GroupName="Theme" Content="⬜ Hell"     />
+                    <RadioButton x:Name="ThemeAmber" Style="{StaticResource ThemeBtn}" GroupName="Theme" Content="🟧 Bernstein"/>
+                    <RadioButton x:Name="ThemeBlue"  Style="{StaticResource ThemeBtn}" GroupName="Theme" Content="🟦 Blau"    />
+                </StackPanel>
+
+                <TextBlock Style="{StaticResource Label}" Text="Deckkraft"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="40"/>
+                    </Grid.ColumnDefinitions>
+                    <Slider x:Name="OpacitySlider" Minimum="40" Maximum="100" Value="93"
+                            TickFrequency="5" IsSnapToTickEnabled="True"
+                            Foreground="#FFC107" Margin="0,4,8,0"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="12" Foreground="White">
+                        <TextBlock.Text>
+                            <Binding ElementName="OpacitySlider" Path="Value" StringFormat="{}{0:0}%"/>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </Grid>
+
+                <!-- ── Gedächtnis ─────────────────────────────────────────── -->
+                <TextBlock Style="{StaticResource Section}" Text="WÖRTERBUCH &amp; GITHUB-SYNC"/>
+
+                <TextBlock Style="{StaticResource Label}" Text="Persönliches Wörterbuch"/>
+                <TextBlock Foreground="#999" FontSize="11" TextWrapping="Wrap"
+                           Text="Eine Korrektur pro Zeile: erkannter Text => gewünschte Schreibweise"/>
+                <TextBox x:Name="VocabularyBox"
+                         Style="{StaticResource Input}"
+                         MinHeight="86"
+                         AcceptsReturn="True"
+                         TextWrapping="Wrap"
+                         VerticalScrollBarVisibility="Auto"
+                         FontFamily="Consolas"
+                         ToolTip="Beispiel: Hier am Haus => Hiram Haus"/>
+
+                <CheckBox x:Name="GitHubMemorySyncCheck" Foreground="White" FontSize="13" Margin="0,8,0,0"
+                          Content="Wörterbuch über GitHub synchronisieren"/>
+
+                <Button x:Name="GitHubConnectionButton"
+                        Content="Nicht verbunden"
+                        Margin="0,10,0,0"
+                        Padding="12,7"
+                        HorizontalAlignment="Stretch"
+                        Background="#C62828"
+                        Foreground="White"
+                        FontWeight="SemiBold"
+                        BorderThickness="0"
+                        Cursor="Hand"
+                        Click="ToggleGitHubConnection"/>
+                <TextBlock x:Name="GitHubConnectionStatusText"
+                           Text="Nicht getestet"
+                           Foreground="#AAAAAA"
+                           FontSize="11"
+                           TextWrapping="Wrap"
+                           Margin="0,5,0,0"/>
+
+                <TextBlock Style="{StaticResource Label}" Text="GitHub Token (Fine-grained PAT mit Contents: Read and write)"/>
+                <PasswordBox x:Name="GitHubMemoryTokenBox" Style="{StaticResource PassInput}"/>
+
+                <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Style="{StaticResource Label}" Text="Owner / Organisation"/>
+                        <TextBox x:Name="GitHubMemoryOwnerBox" Style="{StaticResource Input}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Style="{StaticResource Label}" Text="Repository"/>
+                        <TextBox x:Name="GitHubMemoryRepoBox" Style="{StaticResource Input}"/>
+                    </StackPanel>
+                </Grid>
+
+                <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="8"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Style="{StaticResource Label}" Text="Branch"/>
+                        <TextBox x:Name="GitHubMemoryBranchBox" Style="{StaticResource Input}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Style="{StaticResource Label}" Text="JSON-Pfad"/>
+                        <TextBox x:Name="GitHubMemoryPathBox" Style="{StaticResource Input}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- ── Allgemein ──────────────────────────────────────────── -->
+                <TextBlock Style="{StaticResource Section}" Text="ALLGEMEIN"/>
+                <TextBlock Style="{StaticResource Label}" Text="Wartezeit nach dem Sprechen"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="48"/>
+                    </Grid.ColumnDefinitions>
+                    <Slider x:Name="SilenceTimeoutSlider" Minimum="500" Maximum="6000" Value="3000"
+                            TickFrequency="250" IsSnapToTickEnabled="True"
+                            Foreground="#FFC107" Margin="0,4,8,0"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" FontSize="12" Foreground="White">
+                        <TextBlock.Text>
+                            <Binding ElementName="SilenceTimeoutSlider" Path="Value" StringFormat="{}{0:0} ms"/>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </Grid>
+                <CheckBox x:Name="SmoothingCheck" Foreground="White" FontSize="13" Margin="0,4,0,0"
+                          Content="Sprachbefehle im Vorschlagsmodus glätten"/>
+                <CheckBox x:Name="AutoStartCheck" Foreground="White" FontSize="13" Margin="0,8,0,0"
+                          Content="Mit Windows starten"/>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Buttons -->
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+            <Button Style="{StaticResource SecBtn}" Content="Abbrechen" Margin="0,0,8,0" Click="Cancel"/>
+            <Button Style="{StaticResource PrimaryBtn}" Content="Speichern" Click="Save"/>
+        </StackPanel>
+    </Grid>
+</Window>

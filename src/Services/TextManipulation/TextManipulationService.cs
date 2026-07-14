@@ -1,0 +1,190 @@
+using System;
+using System.Runtime.InteropServices;
+using System.Threading.Tasks;
+using InputSimulatorStandard;
+using InputSimulatorStandard.Native;
+using WpfApp       = System.Windows.Application;
+using WpfClipboard = System.Windows.Clipboard;
+
+namespace Lumi.Services.TextManipulation
+{
+    public class TextManipulationService : ITextManipulationService
+    {
+        [DllImport("user32.dll")] static extern bool   PostMessage(IntPtr hWnd, int Msg, IntPtr wParam, IntPtr lParam);
+        [DllImport("user32.dll")] static extern uint   GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+        [DllImport("user32.dll")] static extern bool   GetGUIThreadInfo(uint idThread, ref GUITHREADINFO pgui);
+        [DllImport("user32.dll")] static extern bool   SetForegroundWindow(IntPtr hWnd);
+        [DllImport("user32.dll")] static extern bool   IsWindow(IntPtr hWnd);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct GUITHREADINFO
+        {
+            public int    cbSize;
+            public int    flags;
+            public IntPtr hwndActive;
+            public IntPtr hwndFocus;   // das wirklich fokussierte Kind-Fenster
+            public IntPtr hwndCapture;
+            public IntPtr hwndMenuOwner;
+            public IntPtr hwndMoveSize;
+            public IntPtr hwndCaret;
+            public int    rcCaretLeft, rcCaretTop, rcCaretRight, rcCaretBottom;
+        }
+
+        private const int WM_COPY = 0x0301;
+
+        /// <summary>
+        /// Ermittelt das fokussierte Kind-Fenster im Thread des angegebenen Top-Level-Fensters.
+        /// Notepad (Windows 11) und viele moderne Apps haben den Edit-Control als Child-HWND.
+        /// </summary>
+        private static IntPtr GetFocusedChildWindow(IntPtr hwndTopLevel)
+        {
+            uint tid = GetWindowThreadProcessId(hwndTopLevel, out _);
+            var  gui = new GUITHREADINFO { cbSize = Marshal.SizeOf<GUITHREADINFO>() };
+            if (GetGUIThreadInfo(tid, ref gui) && gui.hwndFocus != IntPtr.Zero)
+                return gui.hwndFocus;
+            return hwndTopLevel;
+        }
+
+        private readonly InputSimulator _input = new();
+
+        // Clipboard NUR auf STA-UI-Thread aufrufen
+        private static Task<T> OnUi<T>(Func<T> func) =>
+            WpfApp.Current.Dispatcher.InvokeAsync(func).Task;
+
+        private static Task OnUi(Action action) =>
+            WpfApp.Current.Dispatcher.InvokeAsync(action).Task;
+
+        public async Task InsertTextAtCursorAsync(string text)
+        {
+            // ── Schritt 1: Win-Taste im OS sauber freigeben ──────────────────
+            // F15-Trick: eine neutrale Taste zwischen LWIN-Down und LWIN-Up
+            // verhindert, dass Windows das Startmenü öffnet.
+            _input.Keyboard.KeyDown(VirtualKeyCode.F15);
+            _input.Keyboard.KeyUp(VirtualKeyCode.LWIN);
+            _input.Keyboard.KeyUp(VirtualKeyCode.RWIN);
+            _input.Keyboard.KeyUp(VirtualKeyCode.F15);
+
+            // OS Zeit geben den Win-State intern zu verarbeiten
+            await Task.Delay(200);
+
+            // ── Schritt 2: Text über Clipboard einfügen ──────────────────────
+            string? previous = await OnUi(() =>
+            {
+                try { return WpfClipboard.ContainsText() ? WpfClipboard.GetText() : null; }
+                catch { return null; }
+            });
+
+            await OnUi(() => { try { WpfClipboard.SetText(text); } catch { } });
+            await Task.Delay(50);
+
+            _input.Keyboard.ModifiedKeyStroke(VirtualKeyCode.CONTROL, VirtualKeyCode.VK_V);
+            await Task.Delay(150);
+
+            // ── Schritt 3: Clipboard wiederherstellen ────────────────────────
+            await OnUi(() =>
+            {
+                try
+                {
+                    if (previous != null) WpfClipboard.SetText(previous);
+                    else                  WpfClipboard.Clear();
+                }
+                catch { }
+            });
+        }
+
+        public async Task<bool> ReplaceSelectionIfMatchesAsync(
+            IntPtr sourceHwnd, string expectedText, string replacement)
+        {
+            if (sourceHwnd == IntPtr.Zero || !IsWindow(sourceHwnd)) return false;
+
+            SetForegroundWindow(sourceHwnd);
+            await Task.Delay(120);
+
+            var currentSelection = await GetSelectedTextAsync(sourceHwnd);
+            if (!string.Equals(currentSelection, expectedText, StringComparison.Ordinal))
+                return false;
+
+            await InsertTextAtCursorAsync(replacement);
+            return true;
+        }
+
+        public Task CopyTextAsync(string text) =>
+            OnUi(() =>
+            {
+                if (!string.IsNullOrEmpty(text))
+                    WpfClipboard.SetText(text);
+            });
+
+        public async Task<string?> GetSelectedTextAsync(IntPtr sourceHwnd = default)
+        {
+            string? previous = await OnUi(() =>
+            {
+                try { return WpfClipboard.ContainsText() ? WpfClipboard.GetText() : null; }
+                catch { return null; }
+            });
+
+            await OnUi(() => { try { WpfClipboard.Clear(); } catch { } });
+
+            // ── Stufe 1: WM_COPY direkt ans fokussierte Kind-Fenster ─────────
+            // Funktioniert für Notepad, Word, VS Code u.a. Win32-Edit-Controls.
+            // Kein Tastatur-Event → kein Win-Key-Konflikt.
+            if (sourceHwnd != IntPtr.Zero)
+            {
+                var target = GetFocusedChildWindow(sourceHwnd);
+                PostMessage(target, WM_COPY, IntPtr.Zero, IntPtr.Zero);
+                await Task.Delay(120);
+
+                bool gotIt = await OnUi(() => WpfClipboard.ContainsText());
+                if (gotIt)
+                {
+                    string? fast = await OnUi(() =>
+                    {
+                        try { return WpfClipboard.GetText(); } catch { return null; }
+                    });
+                    await RestoreClipboardAsync(previous);
+                    return fast;
+                }
+
+                // WM_COPY hat nichts geliefert (LibreOffice, Firefox, …)
+                // Clipboard für Stufe 2 wieder leeren
+                await OnUi(() => { try { WpfClipboard.Clear(); } catch { } });
+            }
+
+            // ── Stufe 2: F15-Trick → Win kurz freigeben → Ctrl+C ────────────
+            // Funktioniert universell, auch für LibreOffice und Browser.
+            // Der WH_KEYBOARD_LL-Hook in HotkeyManager filtert injizierte
+            // Win-KeyUp-Events (LLKHF_INJECTED), damit die Session nicht
+            // vorzeitig endet.
+            _input.Keyboard.KeyDown(VirtualKeyCode.F15);
+            _input.Keyboard.KeyUp(VirtualKeyCode.LWIN);
+            _input.Keyboard.KeyUp(VirtualKeyCode.RWIN);
+            _input.Keyboard.KeyUp(VirtualKeyCode.F15);
+            await Task.Delay(60);   // OS Win-State verarbeiten lassen
+
+            _input.Keyboard.ModifiedKeyStroke(VirtualKeyCode.CONTROL, VirtualKeyCode.VK_C);
+            await Task.Delay(150);
+
+            string? result = await OnUi(() =>
+            {
+                try { return WpfClipboard.ContainsText() ? WpfClipboard.GetText() : null; }
+                catch { return null; }
+            });
+
+            await RestoreClipboardAsync(previous);
+            return result;
+        }
+
+        private static async Task RestoreClipboardAsync(string? previous)
+        {
+            await OnUi(() =>
+            {
+                try
+                {
+                    if (previous != null) WpfClipboard.SetText(previous);
+                    else                  WpfClipboard.Clear();
+                }
+                catch { }
+            });
+        }
+    }
+}
