@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using InputSimulatorStandard;
@@ -15,6 +17,8 @@ namespace Lumi.Services.TextManipulation
         [DllImport("user32.dll")] static extern bool   GetGUIThreadInfo(uint idThread, ref GUITHREADINFO pgui);
         [DllImport("user32.dll")] static extern bool   SetForegroundWindow(IntPtr hWnd);
         [DllImport("user32.dll")] static extern bool   IsWindow(IntPtr hWnd);
+        [DllImport("user32.dll", SetLastError = true)]
+        static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct GUITHREADINFO
@@ -30,7 +34,57 @@ namespace Lumi.Services.TextManipulation
             public int    rcCaretLeft, rcCaretTop, rcCaretRight, rcCaretBottom;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        private struct INPUT
+        {
+            public uint type;
+            public INPUTUNION data;
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct INPUTUNION
+        {
+            [FieldOffset(0)] public MOUSEINPUT mouse;
+            [FieldOffset(0)] public KEYBDINPUT keyboard;
+            [FieldOffset(0)] public HARDWAREINPUT hardware;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MOUSEINPUT
+        {
+            public int dx;
+            public int dy;
+            public uint mouseData;
+            public uint dwFlags;
+            public uint time;
+            public UIntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct KEYBDINPUT
+        {
+            public ushort wVk;
+            public ushort wScan;
+            public uint dwFlags;
+            public uint time;
+            public UIntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HARDWAREINPUT
+        {
+            public uint uMsg;
+            public ushort wParamL;
+            public ushort wParamH;
+        }
+
         private const int WM_COPY = 0x0301;
+        private const uint INPUT_KEYBOARD = 1;
+        private const uint KEYEVENTF_KEYUP = 0x0002;
+        private const uint KEYEVENTF_UNICODE = 0x0004;
+        private const ushort VK_RETURN = 0x0D;
+        private const ushort VK_TAB = 0x09;
+        private const int TextBatchCharacters = 64;
 
         /// <summary>
         /// Ermittelt das fokussierte Kind-Fenster im Thread des angegebenen Top-Level-Fensters.
@@ -56,6 +110,8 @@ namespace Lumi.Services.TextManipulation
 
         public async Task InsertTextAtCursorAsync(string text)
         {
+            if (string.IsNullOrEmpty(text)) return;
+
             // ── Schritt 1: Win-Taste im OS sauber freigeben ──────────────────
             // F15-Trick: eine neutrale Taste zwischen LWIN-Down und LWIN-Up
             // verhindert, dass Windows das Startmenü öffnet.
@@ -67,29 +123,94 @@ namespace Lumi.Services.TextManipulation
             // OS Zeit geben den Win-State intern zu verarbeiten
             await Task.Delay(200);
 
-            // ── Schritt 2: Text über Clipboard einfügen ──────────────────────
-            string? previous = await OnUi(() =>
+            // ── Schritt 2: Text direkt als Unicode-Tastatureingabe senden ────
+            // Der Diktat- und Ersetzungspfad berührt die Zwischenablage nicht.
+            // So bleibt ein zuvor kopierter Inhalt auch nach dem Diktat erhalten.
+            await TypeUnicodeTextAsync(text);
+        }
+
+        private static async Task TypeUnicodeTextAsync(string text)
+        {
+            var inputs = new List<INPUT>(TextBatchCharacters * 2);
+            var charactersInBatch = 0;
+
+            for (var index = 0; index < text.Length; index++)
             {
-                try { return WpfClipboard.ContainsText() ? WpfClipboard.GetText() : null; }
-                catch { return null; }
-            });
+                var character = text[index];
 
-            await OnUi(() => { try { WpfClipboard.SetText(text); } catch { } });
-            await Task.Delay(50);
-
-            _input.Keyboard.ModifiedKeyStroke(VirtualKeyCode.CONTROL, VirtualKeyCode.VK_V);
-            await Task.Delay(150);
-
-            // ── Schritt 3: Clipboard wiederherstellen ────────────────────────
-            await OnUi(() =>
-            {
-                try
+                if (character == '\r')
                 {
-                    if (previous != null) WpfClipboard.SetText(previous);
-                    else                  WpfClipboard.Clear();
+                    if (index + 1 < text.Length && text[index + 1] == '\n')
+                        index++;
+                    AddVirtualKey(inputs, VK_RETURN);
                 }
-                catch { }
-            });
+                else if (character == '\n')
+                {
+                    AddVirtualKey(inputs, VK_RETURN);
+                }
+                else if (character == '\t')
+                {
+                    AddVirtualKey(inputs, VK_TAB);
+                }
+                else
+                {
+                    AddUnicodeCharacter(inputs, character);
+                }
+
+                charactersInBatch++;
+                if (charactersInBatch < TextBatchCharacters)
+                    continue;
+
+                SendInputBatch(inputs);
+                inputs.Clear();
+                charactersInBatch = 0;
+                await Task.Delay(1);
+            }
+
+            if (inputs.Count > 0)
+                SendInputBatch(inputs);
+        }
+
+        private static void AddUnicodeCharacter(List<INPUT> inputs, char character)
+        {
+            inputs.Add(CreateKeyboardInput(0, character, KEYEVENTF_UNICODE));
+            inputs.Add(CreateKeyboardInput(
+                0, character, KEYEVENTF_UNICODE | KEYEVENTF_KEYUP));
+        }
+
+        private static void AddVirtualKey(List<INPUT> inputs, ushort virtualKey)
+        {
+            inputs.Add(CreateKeyboardInput(virtualKey, '\0', 0));
+            inputs.Add(CreateKeyboardInput(virtualKey, '\0', KEYEVENTF_KEYUP));
+        }
+
+        private static INPUT CreateKeyboardInput(
+            ushort virtualKey, char scanCode, uint flags) =>
+            new()
+            {
+                type = INPUT_KEYBOARD,
+                data = new INPUTUNION
+                {
+                    keyboard = new KEYBDINPUT
+                    {
+                        wVk = virtualKey,
+                        wScan = scanCode,
+                        dwFlags = flags
+                    }
+                }
+            };
+
+        private static void SendInputBatch(List<INPUT> inputs)
+        {
+            var batch = inputs.ToArray();
+            var sent = SendInput(
+                (uint)batch.Length, batch, Marshal.SizeOf<INPUT>());
+            if (sent != (uint)batch.Length)
+            {
+                throw new Win32Exception(
+                    Marshal.GetLastWin32Error(),
+                    "Der diktierte Text konnte nicht vollständig direkt eingefügt werden.");
+            }
         }
 
         public async Task<bool> ReplaceSelectionIfMatchesAsync(
