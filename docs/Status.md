@@ -13,8 +13,8 @@ Nach jeder erledigten Aufgabe:
 
 ## Aktueller Stand
 **Aktive Phase:** Phase 6 – Update-System & Release
-**Letzte Änderung:** 2026-07-14 – GitHub-Pages-Landingpage auf Lumi 4.5.1 und automatische Latest-Release-Erkennung aktualisiert
-**Nächste Aufgabe:** NSIS-Installer, Win+H-Hinweis beim ersten Start, Update-Check via GitHub Releases
+**Letzte Änderung:** 2026-07-16 – Win+J gegen Windows Recall abgeschirmt und lange Groq-Transkriptionen mit Retry, 180s-Timeout und WAV-Teilung stabilisiert
+**Nächste Aufgabe:** Version 4.5.2 veröffentlichen und mit einem langen realen Diktat prüfen; danach NSIS-Installer, Win+H-Hinweis und Update-Check
 
 ---
 
@@ -126,6 +126,8 @@ Lauffähiges WPF-Fenster als transparente "Pille", zeigt/versteckt sich per Hotk
 - [x] Letzte fünf Diktate in der Pille ansehen, nachbearbeiten und kopieren
 - [x] Diktat-Umschalter: sofort am Cursor einfügen oder zuerst nachbearbeiten
 - [x] Push-to-talk-Diktat: natürliche Sprechpausen stoppen die Aufnahme nicht; Verarbeitung erst nach vollständigem Loslassen von Win+J
+- [x] Win+J vollständig im Low-Level-Hook abfangen, damit Windows 11 nicht Recall oder ein anderes Systemfenster öffnet
+- [x] Lange Diktate: STT-Timeout auf 180s pro Versuch, automatische Wiederholung und sichere WAV-Teilung ab 16 MB
 - ~~Provider-Switcher (Ollama / LM Studio) – gestrichen~~
 
 ---
@@ -175,6 +177,7 @@ Lumi auf die beiden alltagstauglichen Kernfunktionen Diktat und Vorschlag konzen
 | 4 | UAC-Dialoge: keine Hotkeys möglich | Bekannte Einschränkung |
 | 5 | Diktat-Modus: Text landete in Windows-Suchleiste statt am Cursor | ✅ Behoben: KeyUp(LWIN/RWIN) + 100ms vor Ctrl+V in TextManipulationService |
 | 6 | Längere Push-to-talk-Diktate stoppten bei Sprechpausen; Verarbeitung bei noch gehaltener Win-Taste löste Windows-Kürzel aus | ✅ Behoben: VAD nur noch für Freihand-Diktat, vollständige Tastenfreigabe vor Verarbeitung |
+| 7 | Aktuelle Windows-11-Versionen verwenden Win+J für Recall und konnten Lumi die Tastenkombination entziehen | ✅ Behoben: Win+J wird vollständig im WH_KEYBOARD_LL-Hook erkannt und unterdrückt |
 
 ---
 
@@ -253,3 +256,6 @@ Lumi auf die beiden alltagstauglichen Kernfunktionen Diktat und Vorschlag konzen
 | 2026-07-14 | Git-Tags sind die Release-Version | Tags im Format `vX.Y.Z` überschreiben die Assembly-Version beim Build und erzeugen über GitHub Actions automatisch EXE, Portable-ZIP und Release Notes |
 | 2026-07-14 | Version 4.5.1 | Stabilitätsfix für längere Push-to-talk-Diktate und tagbasierte Release-Automatik werden als Patch-Release 4.5.1 ausgeliefert |
 | 2026-07-14 | Landingpage folgt dem Latest-Release | Die GitHub-Pages-Seite liest Version, EXE-Link und Dateigröße aus der öffentlichen GitHub-Releases-API; statische 4.5.1-Werte bleiben als Offline-Fallback |
+| 2026-07-16 | Win+J vollständig im Low-Level-Hook | Windows 11 belegt Win+J inzwischen für Recall; Lumi unterdrückt die physische J-Sequenz und neutralisiert die Win-Taste mit F15, bevor Windows sie auswertet |
+| 2026-07-16 | Lange Groq-Transkriptionen werden fehlertolerant | Das frühere 30s-Limit war für längere Aufnahmen zu knapp; jetzt gelten 180s pro Versuch, bis zu drei Versuche und eine 16-MB-WAV-Teilung |
+| 2026-07-16 | Version 4.5.2 | Recall-Hotkey-Abschirmung und robuste Langdiktat-Transkription werden als Patch-Version vorbereitet |
