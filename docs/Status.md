@@ -13,8 +13,8 @@ Nach jeder erledigten Aufgabe:
 
 ## Aktueller Stand
 **Aktive Phase:** Phase 6 – Update-System & Release
-**Letzte Änderung:** 2026-07-16 – Win+J gegen Windows Recall abgeschirmt und lange Groq-Transkriptionen mit Retry, 180s-Timeout und WAV-Teilung stabilisiert
-**Nächste Aufgabe:** Version 4.5.2 veröffentlichen und mit einem langen realen Diktat prüfen; danach NSIS-Installer, Win+H-Hinweis und Update-Check
+**Letzte Änderung:** 2026-07-16 – Lumi 4.5.2 mit deutschem GitHub-Release, EXE, Portable-ZIP und aktualisierter GitHub-Pages-Seite veröffentlicht
+**Nächste Aufgabe:** Version 4.5.2 mit einem langen realen Diktat prüfen; danach NSIS-Installer, Win+H-Hinweis und Update-Check
 
 ---
 
@@ -142,10 +142,12 @@ Lauffähiges WPF-Fenster als transparente "Pille", zeigt/versteckt sich per Hotk
 - [ ] Update-Banner in Pille / Tray
 - [x] GitHub Actions: Git-Tag `vX.Y.Z` → versionierter Build → GitHub Release mit automatisch erzeugtem Begleittext
 - [x] Version 4.5.1 über Tag `v4.5.1` veröffentlicht (EXE + Portable-ZIP + automatisch erzeugte Release Notes)
+- [x] Version 4.5.2 über Tag `v4.5.2` veröffentlicht (EXE + Portable-ZIP + ausführlicher deutscher Release-Text)
 - [x] Release-EXE (self-contained, win-x64, 156 MB) unter `src/bin/Release/.../publish/Lumi.exe`
 - [x] Statische Landingpage unter `website/index.html` mit Downloadlink, Nutzungserklärung und API-Key-Anleitung
 - [x] Landingpage für GitHub Pages vorbereitet: lokales Icon, `.nojekyll`, GitHub-Release-Downloadlink als Platzhalter
 - [x] GitHub-Pages-Landingpage auf die zwei Modi und Version 4.5.1 aktualisiert; Versionsnummer, Download und Dateigröße folgen künftig automatisch dem Latest-Release
+- [x] GitHub-Pages-Landingpage auf Version 4.5.2, lange Diktate und die Abschirmung gegen Windows Recall aktualisiert und live geprüft
 
 ---
 
@@ -258,4 +260,4 @@ Lumi auf die beiden alltagstauglichen Kernfunktionen Diktat und Vorschlag konzen
 | 2026-07-14 | Landingpage folgt dem Latest-Release | Die GitHub-Pages-Seite liest Version, EXE-Link und Dateigröße aus der öffentlichen GitHub-Releases-API; statische 4.5.1-Werte bleiben als Offline-Fallback |
 | 2026-07-16 | Win+J vollständig im Low-Level-Hook | Windows 11 belegt Win+J inzwischen für Recall; Lumi unterdrückt die physische J-Sequenz und neutralisiert die Win-Taste mit F15, bevor Windows sie auswertet |
 | 2026-07-16 | Lange Groq-Transkriptionen werden fehlertolerant | Das frühere 30s-Limit war für längere Aufnahmen zu knapp; jetzt gelten 180s pro Versuch, bis zu drei Versuche und eine 16-MB-WAV-Teilung |
-| 2026-07-16 | Version 4.5.2 | Recall-Hotkey-Abschirmung und robuste Langdiktat-Transkription werden als Patch-Version vorbereitet |
+| 2026-07-16 | Version 4.5.2 | Recall-Hotkey-Abschirmung und robuste Langdiktat-Transkription wurden mit EXE, Portable-ZIP, deutschem Release-Text und aktualisierter Website veröffentlicht |
