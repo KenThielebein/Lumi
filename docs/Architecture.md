@@ -15,7 +15,7 @@ Diese Datei beschreibt wie die Komponenten zusammenspielen. Halte dich an diese 
                          │
           ┌──────────────▼──────────────┐
           │         HotkeyManager        │
-          │  (RegisterHotKey Win32 API)  │
+          │ (WH_KEYBOARD_LL Win32 Hook)  │
           │  Erkennt: Press / Release /  │
           │  DoubleClick / Hold-Duration │
           └──────────────┬──────────────┘
@@ -93,7 +93,7 @@ Sprechpausen aktiv und stoppt sofort, sobald Win oder J losgelassen wird.
 ### Core
 ```csharp
 public class HotkeyManager : IDisposable
-// Registriert Win+J via Win32 RegisterHotKey
+// Fängt Win+J vollständig via WH_KEYBOARD_LL ab, bevor Windows Recall öffnet
 // Feuert Events basierend auf Tipp-Länge und -Frequenz:
 //   ShortPressed   → < 200ms  (Toggle)
 //   LongPressed    → > 200ms  (Push-to-Talk Beginn)
@@ -242,20 +242,16 @@ public class AppConfig
 
 ```csharp
 [DllImport("user32.dll")]
-private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+private static extern IntPtr SetWindowsHookEx(
+    int idHook, LowLevelKeyboardProc callback, IntPtr module, uint threadId);
 
-[DllImport("user32.dll")]
-private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
-
-// Win + J
-const uint MOD_WIN      = 0x0008;
-const uint MOD_NOREPEAT = 0x4000;
-const uint VK_J         = 0x4A;
-
-// Registrierung: RegisterHotKey(hwnd, HOTKEY_ID, MOD_WIN | MOD_NOREPEAT, VK_J)
+// Der Hook unterdrückt physische J-Down/Repeat/Up-Ereignisse der aktiven
+// Win+J-Sequenz. Ein injiziertes neutrales F15 verhindert, dass Windows beim
+// Loslassen der Win-Taste das Startmenü öffnet.
 ```
 
-> ℹ️ Win+J ist in Windows 11 nicht systemseitig belegt – kein Konflikt erwartet.
+> ℹ️ Win+J öffnet in aktuellen Windows-11-Versionen Recall. Lumi verarbeitet
+> die Kombination daher vor Windows und reicht sie nicht an das System weiter.
 > Hotkey ist in den Einstellungen konfigurierbar falls gewünscht.
 
 ---
@@ -266,7 +262,8 @@ const uint VK_J         = 0x4A;
 |---|---|
 | Kein Mikrofon | Overlay zeigt Fehler-Icon + Tooltip |
 | API Key fehlt | Overlay → Einstellungen öffnen |
-| API Timeout (>10s) | Abbrechen, Overlay zeigt "Zeitüberschreitung" |
+| STT Timeout / temporärer Netzwerkfehler | Bis zu 3 Versuche mit 180s pro Versuch; danach verständliche Fehlermeldung |
+| Sehr lange Aufnahme (>16 MB WAV) | In sichere WAV-Teile zerlegen und nacheinander transkribieren |
 | Rate Limit (429) | Exponentielles Retry, max. 3 Versuche |
 | Netzwerk offline | SAPI-Fallback für TTS, kein STT möglich |
 

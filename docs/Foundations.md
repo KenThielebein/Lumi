@@ -131,7 +131,8 @@ const int DoubleTapMs     = 400;   // zwei Klicks innerhalb 400ms = Modus
 ```
 
 ### Warum Win + J?
-- Einziger freier Win+-Buchstabe in Windows 11 ohne Systemfunktion
+- Windows 11 belegt Win+J inzwischen für Recall; Lumi fängt die Kombination
+  deshalb vollständig im Low-Level-Keyboard-Hook ab, bevor Windows sie auswertet
 - Leicht erreichbar, kein Konflikt mit DE-Keyboard-Layout
 - Konfigurierbar in den Einstellungen falls gewünscht
 - ⚠️ Win + H (Microsoft Voice Typing) ist unser direkter Konkurrent – in Lumi-Einstellungen Hinweis einblenden
