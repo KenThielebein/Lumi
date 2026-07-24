@@ -13,8 +13,8 @@ Nach jeder erledigten Aufgabe:
 
 ## Aktueller Stand
 **Aktive Phase:** Phase 6 – Update-System & Release
-**Letzte Änderung:** 2026-07-24 – Version 4.5.4 auf GitHub veröffentlicht und GitHub-Pages-Website mit Download und Versionshinweisen aktualisiert
-**Nächste Aufgabe:** Version 4.5.4 auf dem Ziel-Notebook praktisch mit Win→J, J→Win und einem langen realen Diktat testen; danach alternative Tastenkombination, NSIS-Installer, Win+H-Hinweis und Update-Check umsetzen
+**Letzte Änderung:** 2026-07-24 – Win+J für OEM-Tastaturtreiber und Remoting-Eingaben repariert; Version 4.5.5 auf GitHub und der Website veröffentlicht
+**Nächste Aufgabe:** Version 4.5.5 auf dem betroffenen zweiten Rechner praktisch mit Win→J und J→Win testen; danach alternative Tastenkombination, NSIS-Installer, Win+H-Hinweis und Update-Check umsetzen
 
 ---
 
@@ -148,6 +148,9 @@ Lauffähiges WPF-Fenster als transparente "Pille", zeigt/versteckt sich per Hotk
 - [x] Version 4.5.3 auf dem Ziel-Notebook gestartet, Autostart repariert und per Win+J praktisch bestätigt
 - [x] Version 4.5.4 lokal gebaut: 55-ms-Chord-Puffer gegen sichtbares J, ereignisbasierter Audio-Stopp, kürzerer Einfüge-Nachlauf und verlustsichere Langdiktat-Fehlerbehandlung
 - [x] Version 4.5.4 über Tag `v4.5.4` auf GitHub veröffentlicht (EXE + Portable-ZIP)
+- [x] Rechnerabhängigen Recall-/Windows-Hello-Aufruf analysiert und behoben: fremd injizierte Win-/J-Eingaben werden verarbeitet, nur Lumi-eigene SendInput-Ereignisse werden per Marker übersprungen
+- [x] Version 4.5.5 lokal mit Klassifikationstest und Release-Build validiert
+- [x] Version 4.5.5 über Tag `v4.5.5` auf GitHub veröffentlicht und GitHub-Pages-Website aktualisiert
 - [x] Release-EXE (self-contained, win-x64, 156 MB) unter `src/bin/Release/.../publish/Lumi.exe`
 - [x] Statische Landingpage unter `website/index.html` mit Downloadlink, Nutzungserklärung und API-Key-Anleitung
 - [x] Landingpage für GitHub Pages vorbereitet: lokales Icon, `.nojekyll`, GitHub-Release-Downloadlink als Platzhalter
@@ -191,6 +194,7 @@ Lumi auf die beiden alltagstauglichen Kernfunktionen Diktat und Vorschlag konzen
 | 10 | Beim Drücken von Win+J flackerte der Notebook-Bildschirm kurz | ✅ Behoben und praktisch bestätigt: F15-Maskierung in 4.5.3 durch kurzen Strg-Impuls ersetzt |
 | 11 | Wenn J knapp vor Win eintraf, erschien erst „j“ und Lumi startete verzögert beim Auto-Repeat | ✅ Behoben in 4.5.4: J wird 55 ms gepuffert und bei ausbleibendem Win unverändert nachgereicht |
 | 12 | Ein Einfüge- oder später Chunkfehler konnte ein bereits transkribiertes Langdiktat unzugänglich machen | ✅ Behoben in 4.5.4: erkannte Texte bleiben in der Diktat-Historie; technische Metadaten können opt-in geloggt werden |
+| 13 | Auf Rechnern mit OEM-Tastaturdienst oder Remoting öffnete Win+J Windows Recall und danach Windows Hello | ✅ Behoben in 4.5.5: fremd injizierte Benutzereingaben werden nicht mehr pauschal ignoriert; nur Lumi-eigene SendInput-Ereignisse tragen einen Filtermarker |
 
 ---
 
@@ -280,3 +284,5 @@ Lumi auf die beiden alltagstauglichen Kernfunktionen Diktat und Vorschlag konzen
 | 2026-07-20 | Langdiktate bleiben wiederherstellbar | Teiltranskripte und fertige Texte werden bei späterem Chunk- oder SendInput-Fehler in der Historie gesichert; opt-in Logs enthalten nur technische Metadaten |
 | 2026-07-20 | Version 4.5.4 | Hotkey-Reihenfolge, Diktat-Latenz und Fehlerrobustheit werden als lokaler Patch-Release gebündelt |
 | 2026-07-24 | Version 4.5.4 veröffentlicht | GitHub-Release, Download-Fallback, README und GitHub-Pages-Website zeigen denselben freigegebenen Stand |
+| 2026-07-24 | Fremd injizierte Hotkey-Eingaben | Tastaturtreiber, OEM-Hotkeydienste und Remoting können echte Tasten als `LLKHF_INJECTED` liefern; Lumi filtert deshalb nur noch eigene SendInput-Ereignisse anhand des Markers `LUMI` |
+| 2026-07-24 | Version 4.5.5 | Rechnerübergreifende Win+J-/Recall-Korrektur als Patch-Release mit aktualisierter Website und Downloads |

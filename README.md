@@ -5,14 +5,15 @@ Die App wartet unauffällig im System-Tray und wird über `Win + J` bedient.
 
 ## Aktuelle Version
 
-**Lumi 4.5.4**
+**Lumi 4.5.5**
 
+- blockiert Windows Recall und die nachfolgende Windows-Hello-Abfrage auch bei Tastaturen mit OEM-Treiber oder Remoting-Eingabe
 - erkennt `Win + J` auch dann zuverlässig, wenn `J` wenige Millisekunden zuerst eintrifft
 - verarbeitet Diktate mit kürzerem festem Nachlauf
 - sichert bereits erkannten Text bei späteren Transkriptions- oder Einfügefehlern
 - fügt Diktate direkt per Unicode-Eingabe ein, ohne die Zwischenablage zu verändern
 
-[Lumi 4.5.4 herunterladen](https://github.com/KenThielebein/Lumi/releases/latest)
+[Lumi 4.5.5 herunterladen](https://github.com/KenThielebein/Lumi/releases/latest)
 
 [Lumi-Website öffnen](https://kenthielebein.github.io/Lumi/)
 

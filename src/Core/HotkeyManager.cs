@@ -44,8 +44,9 @@ namespace Lumi.Core
         [DllImport("user32.dll")]
         private static extern short GetAsyncKeyState(int vKey);
 
-        [DllImport("user32.dll")]
-        private static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint SendInput(
+            uint nInputs, INPUT[] pInputs, int cbSize);
 
         private const int WhKeyboardLl = 13;
         private const int WmKeyDown = 0x0100;
@@ -59,7 +60,10 @@ namespace Lumi.Core
         private const int VkEscape = 0x1B;
         private const int VkReturn = 0x0D;
         private const int LlkHfInjected = 0x10;
+        private const uint InputKeyboard = 1;
         private const uint KeyEventFKeyUp = 0x0002;
+        private const uint LumiInputMarkerValue = 0x4C554D49; // "LUMI"
+        private static readonly UIntPtr LumiInputMarker = new(LumiInputMarkerValue);
 
         private const int ShortPressMs = 200;
         private const int DoubleTapMs = 400;
@@ -67,6 +71,40 @@ namespace Lumi.Core
 
         private delegate IntPtr LowLevelKeyboardProc(
             int nCode, IntPtr wParam, IntPtr lParam);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct KbdLlHookStruct
+        {
+            public uint VkCode;
+            public uint ScanCode;
+            public uint Flags;
+            public uint Time;
+            public UIntPtr ExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct INPUT
+        {
+            public uint Type;
+            public InputUnion Data;
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct InputUnion
+        {
+            [FieldOffset(0)]
+            public KEYBDINPUT Keyboard;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct KEYBDINPUT
+        {
+            public ushort VirtualKey;
+            public ushort ScanCode;
+            public uint Flags;
+            public uint Time;
+            public UIntPtr ExtraInfo;
+        }
 
         private readonly LowLevelKeyboardProc _hookProc;
         private readonly object _pendingJSync = new();
@@ -123,14 +161,20 @@ namespace Lumi.Core
             if (nCode < 0)
                 return CallNextHookEx(_hookId, nCode, wParam, lParam);
 
-            var vk = Marshal.ReadInt32(lParam, 0);
-            var flags = Marshal.ReadInt32(lParam, 8);
-            var isInjected = (flags & LlkHfInjected) != 0;
+            var hookData = Marshal.PtrToStructure<KbdLlHookStruct>(lParam);
+            var vk = unchecked((int)hookData.VkCode);
+            var isOwnInjectedInput =
+                IsOwnInjectedInput(hookData.Flags, hookData.ExtraInfo);
             var message = wParam.ToInt32();
             var isDown = message == WmKeyDown || message == WmSysKeyDown;
             var isUp = message == WmKeyUp || message == WmSysKeyUp;
 
-            if (isInjected)
+            // Nur von Lumi selbst nachgereichte Tastenereignisse überspringen.
+            // Manche Tastaturtreiber, Remoting-Lösungen und OEM-Hotkeydienste
+            // kennzeichnen echte Benutzereingaben ebenfalls als "injected".
+            // Würden wir alle solchen Ereignisse ignorieren, sähe Windows die
+            // komplette Win+J-Folge und öffnete Recall samt Windows-Hello-Abfrage.
+            if (isOwnInjectedInput)
                 return CallNextHookEx(_hookId, nCode, wParam, lParam);
 
             if (vk == VkEscape)
@@ -239,6 +283,10 @@ namespace Lumi.Core
 
             return CallNextHookEx(_hookId, nCode, wParam, lParam);
         }
+
+        private static bool IsOwnInjectedInput(uint flags, UIntPtr extraInfo) =>
+            (flags & LlkHfInjected) != 0 &&
+            extraInfo == LumiInputMarker;
 
         private bool IsWinPhysicallyDown() =>
             _leftWinDown ||
@@ -424,17 +472,42 @@ namespace Lumi.Core
 
         private static void NeutralizeWindowsKeySequence()
         {
-            keybd_event(VkControl, 0, 0, UIntPtr.Zero);
-            keybd_event(VkControl, 0, KeyEventFKeyUp, UIntPtr.Zero);
+            SendSyntheticKeys(
+                CreateKeyboardInput(VkControl),
+                CreateKeyboardInput(VkControl, keyUp: true));
         }
 
         private static void ReplayJDown() =>
-            keybd_event(VkJ, 0, 0, UIntPtr.Zero);
+            SendSyntheticKeys(CreateKeyboardInput(VkJ));
 
         private static void ReplayJTap()
         {
-            keybd_event(VkJ, 0, 0, UIntPtr.Zero);
-            keybd_event(VkJ, 0, KeyEventFKeyUp, UIntPtr.Zero);
+            SendSyntheticKeys(
+                CreateKeyboardInput(VkJ),
+                CreateKeyboardInput(VkJ, keyUp: true));
+        }
+
+        private static INPUT CreateKeyboardInput(int virtualKey, bool keyUp = false) =>
+            new()
+            {
+                Type = InputKeyboard,
+                Data = new InputUnion
+                {
+                    Keyboard = new KEYBDINPUT
+                    {
+                        VirtualKey = unchecked((ushort)virtualKey),
+                        Flags = keyUp ? KeyEventFKeyUp : 0,
+                        ExtraInfo = LumiInputMarker
+                    }
+                }
+            };
+
+        private static void SendSyntheticKeys(params INPUT[] inputs)
+        {
+            _ = SendInput(
+                unchecked((uint)inputs.Length),
+                inputs,
+                Marshal.SizeOf<INPUT>());
         }
 
         private static void Dispatch(Action action) =>

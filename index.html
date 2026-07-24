@@ -494,7 +494,7 @@
       </a>
       <div class="nav-links">
         <a href="#download">Download</a>
-        <a href="#neu">Neu in 4.5.4</a>
+        <a href="#neu">Neu in 4.5.5</a>
         <a href="#start">Einrichten</a>
         <a href="#nutzen">Nutzen</a>
         <a href="#keys">API-Keys</a>
@@ -510,10 +510,10 @@
           <h1 id="hero-title">Lumi</h1>
           <p class="lead">Ein kleiner KI-Assistent, der im System-Tray wartet, bei Bedarf als dezente Pille erscheint und Diktat sowie sichere Textvorschlaege direkt in deinen Alltag bringt.</p>
           <div class="hero-actions" id="download">
-            <a class="button primary" id="download-button" href="https://github.com/KenThielebein/Lumi/releases/download/v4.5.4/Lumi-4.5.4.exe" download>Download fuer Windows</a>
+            <a class="button primary" id="download-button" href="https://github.com/KenThielebein/Lumi/releases/download/v4.5.5/Lumi-4.5.5.exe" download>Download fuer Windows</a>
             <a class="button secondary" href="#keys">API-Keys einrichten</a>
           </div>
-          <p class="hero-note">Aktuelle Version: <strong id="current-version">4.5.4</strong>. Portable EXE, ca. <span id="current-download-size">156 MB</span>. Der Download fuehrt direkt zum neuesten GitHub-Release.</p>
+          <p class="hero-note">Aktuelle Version: <strong id="current-version">4.5.5</strong>. Portable EXE, ca. <span id="current-download-size">156 MB</span>. Der Download fuehrt direkt zum neuesten GitHub-Release.</p>
         </div>
 
         <div class="product-visual" aria-label="Lumi Overlay Vorschau">
@@ -535,23 +535,23 @@
 
     <section class="section alt" id="neu" aria-labelledby="neu-title">
       <div class="container">
-        <h2 id="neu-title">Neu in Lumi 4.5.4</h2>
-        <p class="intro">Das aktuelle Stabilitätsupdate macht Win+J schneller und robuster und schützt auch lange Diktate besser vor Datenverlust.</p>
+        <h2 id="neu-title">Neu in Lumi 4.5.5</h2>
+        <p class="intro">Das Kompatibilitätsupdate fängt Win+J jetzt auch auf Rechnern mit herstellereigenen Tastaturdiensten oder Fernzugriff zuverlässig vor Windows ab.</p>
         <div class="grid three">
           <article class="card">
             <span class="label amber">Win+J</span>
-            <h3>Kein sichtbares „j“ mehr</h3>
-            <p>Lumi erkennt den Hotkey jetzt auch dann zuverlässig, wenn die J-Taste wenige Millisekunden vor der Windows-Taste ankommt.</p>
+            <h3>Recall bleibt geschlossen</h3>
+            <p>Windows erhält die Win+J-Folge nicht mehr und öffnet deshalb weder Recall noch die nachfolgende Windows-Hello-Einrichtung.</p>
           </article>
           <article class="card">
-            <span class="label teal">Tempo</span>
-            <h3>Spürbar kürzerer Nachlauf</h3>
-            <p>Audio-Stopp und Texteingabe warten nicht mehr mehrfach pauschal. Nach dem Loslassen beginnt die Verarbeitung schneller.</p>
+            <span class="label teal">Kompatibilität</span>
+            <h3>Für unterschiedliche Rechner</h3>
+            <p>Lumi verarbeitet auch Tastensignale, die von OEM-Treibern, Tastatursoftware oder Fernzugriff technisch als eingespeist markiert werden.</p>
           </article>
           <article class="card">
-            <span class="label coral">Langdiktat</span>
-            <h3>Erkannter Text bleibt erhalten</h3>
-            <p>Falls ein später Audioteil oder das direkte Einfügen scheitert, bleibt der bereits erkannte Text in Lumis Diktat-Historie verfügbar.</p>
+            <span class="label coral">Sicher</span>
+            <h3>Eigene Signale klar getrennt</h3>
+            <p>Nur Lumis eigene nachgereichte Tastenereignisse werden übersprungen. Dadurch entstehen weder Schleifen noch versehentliche Windows-Kürzel.</p>
           </article>
         </div>
       </div>
@@ -714,7 +714,7 @@
           }
         })
         .catch(() => {
-          // Die statischen 4.5.4-Werte bleiben als Offline-Fallback erhalten.
+          // Die statischen 4.5.5-Werte bleiben als Offline-Fallback erhalten.
         });
     })();
   </script>

@@ -253,6 +253,9 @@ private static extern IntPtr SetWindowsHookEx(
 // beim Loslassen der Win-Taste das Startmenü öffnet, ohne eine Funktionstaste
 // auszulösen. Trifft J wenige Millisekunden vor Win ein, hält ein 55-ms-
 // Chord-Puffer das erste J zurück und reicht es nur dann nach, wenn Win ausbleibt.
+// Lumi-eigene SendInput-Ereignisse tragen einen Marker und werden vom Hook
+// übersprungen. Fremd injizierte Eingaben von OEM-Treibern oder Remoting werden
+// dagegen wie Benutzereingaben verarbeitet, damit Recall nicht durchrutscht.
 ```
 
 > ℹ️ Win+J öffnet in aktuellen Windows-11-Versionen Recall. Lumi verarbeitet

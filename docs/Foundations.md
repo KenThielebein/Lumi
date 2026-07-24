@@ -136,6 +136,12 @@ gepuffert. Folgt Win, gehört es vollständig zur Lumi-Sequenz; folgt Win nicht,
 wird die normale J-Eingabe unverändert nachgereicht. Eine bereits sichtbare
 Eingabe darf niemals nachträglich per Backspace entfernt werden.
 
+Der Low-Level-Hook unterscheidet Lumi-eigene synthetische Eingaben über einen
+eindeutigen Marker von Eingaben anderer Tastaturtreiber, OEM-Hotkeydienste oder
+Remoting-Lösungen. Nur Lumi-eigene Ereignisse werden übersprungen. Fremd als
+`injected` markierte Win-/J-Ereignisse gehören weiterhin zur Hotkey-Erkennung,
+damit Windows Recall und dessen Windows-Hello-Abfrage nicht geöffnet werden.
+
 ### Warum Win + J?
 - Windows 11 belegt Win+J inzwischen für Recall; Lumi fängt die Kombination
   deshalb vollständig im Low-Level-Keyboard-Hook ab, bevor Windows sie auswertet
