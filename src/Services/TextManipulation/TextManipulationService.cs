@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using InputSimulatorStandard;
 using InputSimulatorStandard.Native;
+using Lumi.Services.Diagnostics;
 using WpfApp       = System.Windows.Application;
 using WpfClipboard = System.Windows.Clipboard;
 
@@ -113,15 +114,18 @@ namespace Lumi.Services.TextManipulation
             if (string.IsNullOrEmpty(text)) return;
 
             // ── Schritt 1: Win-Taste im OS sauber freigeben ──────────────────
-            // F15-Trick: eine neutrale Taste zwischen LWIN-Down und LWIN-Up
-            // verhindert, dass Windows das Startmenü öffnet.
-            _input.Keyboard.KeyDown(VirtualKeyCode.F15);
+            // Ein kurzer Strg-Impuls zwischen LWIN-Down und LWIN-Up verhindert,
+            // dass Windows das Startmenü öffnet, ohne eine Funktionstaste
+            // auszulösen, die Notebook-Hilfssoftware sichtbar behandeln könnte.
+            _input.Keyboard.KeyDown(VirtualKeyCode.CONTROL);
             _input.Keyboard.KeyUp(VirtualKeyCode.LWIN);
             _input.Keyboard.KeyUp(VirtualKeyCode.RWIN);
-            _input.Keyboard.KeyUp(VirtualKeyCode.F15);
+            _input.Keyboard.KeyUp(VirtualKeyCode.CONTROL);
 
-            // OS Zeit geben den Win-State intern zu verarbeiten
-            await Task.Delay(200);
+            // Die Pipeline wartet bereits auf die physische Freigabe von Win+J.
+            // Ein kurzer Scheduler-/Message-Queue-Nachlauf genügt; die früheren
+            // 200 ms waren doppelt und bei jedem Diktat deutlich spürbar.
+            await Task.Delay(30);
 
             // ── Schritt 2: Text direkt als Unicode-Tastatureingabe senden ────
             // Der Diktat- und Ersetzungspfad berührt die Zwischenablage nicht.
@@ -161,14 +165,14 @@ namespace Lumi.Services.TextManipulation
                 if (charactersInBatch < TextBatchCharacters)
                     continue;
 
-                SendInputBatch(inputs);
+                await SendInputBatchAsync(inputs);
                 inputs.Clear();
                 charactersInBatch = 0;
                 await Task.Delay(1);
             }
 
             if (inputs.Count > 0)
-                SendInputBatch(inputs);
+                await SendInputBatchAsync(inputs);
         }
 
         private static void AddUnicodeCharacter(List<INPUT> inputs, char character)
@@ -200,16 +204,48 @@ namespace Lumi.Services.TextManipulation
                 }
             };
 
-        private static void SendInputBatch(List<INPUT> inputs)
+        private static async Task SendInputBatchAsync(List<INPUT> inputs)
         {
             var batch = inputs.ToArray();
-            var sent = SendInput(
-                (uint)batch.Length, batch, Marshal.SizeOf<INPUT>());
-            if (sent != (uint)batch.Length)
+            var offset = 0;
+            var lastError = 0;
+
+            for (var attempt = 1; attempt <= 3 && offset < batch.Length; attempt++)
             {
+                INPUT[] remaining;
+                if (offset == 0)
+                {
+                    remaining = batch;
+                }
+                else
+                {
+                    remaining = new INPUT[batch.Length - offset];
+                    Array.Copy(batch, offset, remaining, 0, remaining.Length);
+                }
+
+                var sent = SendInput(
+                    (uint)remaining.Length,
+                    remaining,
+                    Marshal.SizeOf<INPUT>());
+                lastError = Marshal.GetLastWin32Error();
+                offset += (int)sent;
+
+                if (offset < batch.Length && attempt < 3)
+                    await Task.Delay(attempt * 5);
+            }
+
+            if (offset != batch.Length)
+            {
+                LumiDiagnostics.Write(
+                    "send_input_partial",
+                    ("expected_events", batch.Length),
+                    ("sent_events", offset),
+                    ("win32_error", lastError));
                 throw new Win32Exception(
-                    Marshal.GetLastWin32Error(),
-                    "Der diktierte Text konnte nicht vollständig direkt eingefügt werden.");
+                    lastError,
+                    $"Der diktierte Text konnte nicht vollständig direkt eingefügt werden " +
+                    $"({offset / 2} von {batch.Length / 2} Zeichenereignissen). " +
+                    "Möglicherweise läuft die Zielanwendung mit Administratorrechten.");
             }
         }
 
@@ -271,15 +307,15 @@ namespace Lumi.Services.TextManipulation
                 await OnUi(() => { try { WpfClipboard.Clear(); } catch { } });
             }
 
-            // ── Stufe 2: F15-Trick → Win kurz freigeben → Ctrl+C ────────────
+            // ── Stufe 2: Strg-Maskierung → Win kurz freigeben → Ctrl+C ────────────
             // Funktioniert universell, auch für LibreOffice und Browser.
             // Der WH_KEYBOARD_LL-Hook in HotkeyManager filtert injizierte
             // Win-KeyUp-Events (LLKHF_INJECTED), damit die Session nicht
             // vorzeitig endet.
-            _input.Keyboard.KeyDown(VirtualKeyCode.F15);
+            _input.Keyboard.KeyDown(VirtualKeyCode.CONTROL);
             _input.Keyboard.KeyUp(VirtualKeyCode.LWIN);
             _input.Keyboard.KeyUp(VirtualKeyCode.RWIN);
-            _input.Keyboard.KeyUp(VirtualKeyCode.F15);
+            _input.Keyboard.KeyUp(VirtualKeyCode.CONTROL);
             await Task.Delay(60);   // OS Win-State verarbeiten lassen
 
             _input.Keyboard.ModifiedKeyStroke(VirtualKeyCode.CONTROL, VirtualKeyCode.VK_C);

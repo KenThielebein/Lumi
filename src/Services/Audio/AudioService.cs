@@ -13,6 +13,7 @@ namespace Lumi.Services.Audio
         private WaveInEvent? _waveIn;
         private MemoryStream? _buffer;
         private WaveFileWriter? _writer;
+        private TaskCompletionSource<bool>? _recordingStopped;
         private DateTime _lastSound = DateTime.UtcNow;
         private DateTime _captureFrom;
         private CancellationTokenSource? _vadCts;
@@ -48,11 +49,17 @@ namespace Lumi.Services.Audio
                         BufferMilliseconds = 50
                     };
                     _writer = new WaveFileWriter(_buffer, _waveIn.WaveFormat);
-                    _captureFrom = DateTime.UtcNow.AddMilliseconds(100);
+                    // Der Long-Press wurde bereits vom Hotkey-Manager bestätigt.
+                    // Deshalb darf der erste Audiobuffer sofort aufgenommen werden;
+                    // ein zusätzliches 100-ms-Blindfenster schnitt sonst Wortanfänge ab.
+                    _captureFrom = DateTime.UtcNow;
                     _lastSound = _captureFrom;
                     _vadCts = new CancellationTokenSource();
+                    _recordingStopped = new TaskCompletionSource<bool>(
+                        TaskCreationOptions.RunContinuationsAsynchronously);
                     vadToken = _vadCts.Token;
                     _waveIn.DataAvailable += OnDataAvailable;
+                    _waveIn.RecordingStopped += OnRecordingStopped;
                     _isRecording = true;
 
                     try
@@ -125,6 +132,8 @@ namespace Lumi.Services.Audio
             await _lifecycleGate.WaitAsync();
             try
             {
+                WaveInEvent? waveIn;
+                Task recordingStopped;
                 lock (_sync)
                 {
                     if (!_isRecording) return Array.Empty<byte>();
@@ -132,10 +141,15 @@ namespace Lumi.Services.Audio
                     // Block a concurrent VAD/hotkey stop before cleanup starts.
                     _isRecording = false;
                     _vadCts?.Cancel();
-                    _waveIn?.StopRecording();
+                    waveIn = _waveIn;
+                    recordingStopped = _recordingStopped?.Task ?? Task.CompletedTask;
                 }
 
-                await Task.Delay(100);
+                waveIn?.StopRecording();
+
+                // NAudio meldet zuverlässig, wann keine Capture-Callbacks mehr
+                // folgen. Nur bei einem defekten Treiber greift der kurze Fallback.
+                await Task.WhenAny(recordingStopped, Task.Delay(500));
 
                 lock (_sync)
                 {
@@ -157,7 +171,10 @@ namespace Lumi.Services.Audio
         private void CleanupLocked()
         {
             if (_waveIn != null)
+            {
                 _waveIn.DataAvailable -= OnDataAvailable;
+                _waveIn.RecordingStopped -= OnRecordingStopped;
+            }
             _waveIn?.Dispose();
             _waveIn = null;
             _writer?.Dispose();
@@ -166,7 +183,11 @@ namespace Lumi.Services.Audio
             _buffer = null;
             _vadCts?.Dispose();
             _vadCts = null;
+            _recordingStopped = null;
         }
+
+        private void OnRecordingStopped(object? sender, StoppedEventArgs e) =>
+            _recordingStopped?.TrySetResult(true);
 
         private static float ComputeRms(byte[] buffer, int length)
         {

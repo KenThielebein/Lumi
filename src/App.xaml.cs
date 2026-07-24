@@ -9,6 +9,7 @@ using Lumi.Config;
 using Lumi.Core;
 using Lumi.Services.AI;
 using Lumi.Services.Audio;
+using Lumi.Services.Diagnostics;
 using Lumi.Services.Memory;
 using Lumi.Services.Speech;
 using Lumi.Services.TextManipulation;
@@ -46,8 +47,10 @@ namespace Lumi
             _overlay      = new OverlayWindow();
             _trayIcon     = BuildTrayIcon();
             _audioService = new AudioService();
+            _hotkeyManager = new HotkeyManager();
 
             var config = ConfigManager.Load();
+            LumiDiagnostics.Configure(config.EnableLogging);
             AutoStartManager.Apply(config.AutoStart);
 
             // First-run: open settings if no API key configured
@@ -62,7 +65,6 @@ namespace Lumi
 
             BuildPipeline(config);
 
-            _hotkeyManager = new HotkeyManager();
             _hotkeyManager.HotkeyFired   += OnHotkeyFiredSafely;
             _hotkeyManager.EscapePressed += OnEscape;
             _hotkeyManager.ConfirmPressed += async (_, _) => await _pipeline!.AcceptSuggestionAsync();
@@ -102,6 +104,7 @@ namespace Lumi
         private void BuildPipeline(AppConfig config)
         {
             _pipeline?.Dispose();
+            LumiDiagnostics.Configure(config.EnableLogging);
             _audioService!.SilenceTimeoutMs = config.SilenceTimeoutMs;
 
             var memory = new MemoryService(config);
@@ -131,7 +134,8 @@ namespace Lumi
             var           textService = new TextManipulationService();
 
             _pipeline = new PipelineOrchestrator(
-                _audioService!, stt, smoother, llm, tts, textService, memory, _overlay!, _modeController);
+                _audioService!, stt, smoother, llm, tts, textService, memory, _overlay!, _modeController,
+                () => _hotkeyManager!.AreHotkeyKeysDown);
         }
 
         private void RebuildPipeline()

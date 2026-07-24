@@ -5,7 +5,7 @@ using Lumi.Services.AI;
 
 namespace Lumi.Services.Speech
 {
-    public class SmoothingService : ISmoothingService
+    public class SmoothingService : ISmoothingService, IDisposable
     {
         private readonly IAIProvider _ai;
 
@@ -32,6 +32,12 @@ namespace Lumi.Services.Speech
                 Debug.WriteLine($"[Lumi] Smoothing failed, using raw transcript: {ex.Message}");
                 return rawTranscript;
             }
+        }
+
+        public void Dispose()
+        {
+            if (_ai is IDisposable disposable)
+                disposable.Dispose();
         }
     }
 }

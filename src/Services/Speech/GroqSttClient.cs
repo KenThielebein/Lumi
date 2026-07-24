@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -8,6 +9,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NAudio.Wave;
+using Lumi.Services.Diagnostics;
 
 namespace Lumi.Services.Speech
 {
@@ -20,7 +22,12 @@ namespace Lumi.Services.Speech
         // Reserve für WAV-Header und Multipart-Overhead.
         private const int MaxChunkBytes = 16 * 1024 * 1024;
         private const int MaxAttempts = 3;
-        private static readonly TimeSpan RequestTimeout = TimeSpan.FromMinutes(3);
+        private static readonly TimeSpan[] RequestTimeouts =
+        {
+            TimeSpan.FromSeconds(60),
+            TimeSpan.FromSeconds(120),
+            TimeSpan.FromSeconds(180)
+        };
 
         private readonly HttpClient _http;
         private readonly Func<string>? _promptProvider;
@@ -59,10 +66,23 @@ namespace Lumi.Services.Speech
             var prompt = _promptProvider?.Invoke();
             var transcripts = new List<string>(chunks.Count);
 
-            foreach (var chunk in chunks)
+            for (var chunkIndex = 0; chunkIndex < chunks.Count; chunkIndex++)
             {
-                var text = await TranscribeChunkWithRetryAsync(
-                    chunk, language, prompt).ConfigureAwait(false);
+                string text;
+                try
+                {
+                    text = await TranscribeChunkWithRetryAsync(
+                        chunks[chunkIndex], language, prompt).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (transcripts.Count > 0)
+                {
+                    throw new PartialTranscriptionException(
+                        string.Join(" ", transcripts),
+                        chunkIndex + 1,
+                        chunks.Count,
+                        ex);
+                }
+
                 if (!string.IsNullOrWhiteSpace(text))
                     transcripts.Add(text.Trim());
             }
@@ -77,10 +97,12 @@ namespace Lumi.Services.Speech
 
             for (var attempt = 1; attempt <= MaxAttempts; attempt++)
             {
+                var attemptTimer = Stopwatch.StartNew();
                 try
                 {
                     using var request = BuildRequest(wavData, language, prompt);
-                    using var timeoutCts = new CancellationTokenSource(RequestTimeout);
+                    using var timeoutCts = new CancellationTokenSource(
+                        RequestTimeouts[Math.Min(attempt - 1, RequestTimeouts.Length - 1)]);
                     using var response = await _http.SendAsync(
                         request,
                         HttpCompletionOption.ResponseContentRead,
@@ -89,6 +111,13 @@ namespace Lumi.Services.Speech
                     var responseText = await response.Content
                         .ReadAsStringAsync(timeoutCts.Token)
                         .ConfigureAwait(false);
+
+                    LumiDiagnostics.Write(
+                        "stt_attempt",
+                        ("audio_bytes", wavData.Length),
+                        ("attempt", attempt),
+                        ("status", (int)response.StatusCode),
+                        ("elapsed_ms", attemptTimer.ElapsedMilliseconds));
 
                     if (response.IsSuccessStatusCode)
                         return responseText.Trim();
@@ -104,6 +133,11 @@ namespace Lumi.Services.Speech
                 }
                 catch (OperationCanceledException ex)
                 {
+                    LumiDiagnostics.Write(
+                        "stt_attempt_timeout",
+                        ("audio_bytes", wavData.Length),
+                        ("attempt", attempt),
+                        ("elapsed_ms", attemptTimer.ElapsedMilliseconds));
                     lastException = ex;
                     if (attempt < MaxAttempts)
                     {
@@ -114,6 +148,12 @@ namespace Lumi.Services.Speech
                 }
                 catch (HttpRequestException ex)
                 {
+                    LumiDiagnostics.Write(
+                        "stt_attempt_network_error",
+                        ("audio_bytes", wavData.Length),
+                        ("attempt", attempt),
+                        ("elapsed_ms", attemptTimer.ElapsedMilliseconds),
+                        ("error_type", ex.GetType().Name));
                     lastException = ex;
                     if (attempt < MaxAttempts)
                     {
@@ -220,8 +260,8 @@ namespace Lumi.Services.Speech
                         "Der Groq-API-Key wurde abgelehnt. Bitte den Key in den Lumi-Einstellungen prüfen."),
                 HttpStatusCode.RequestEntityTooLarge =>
                     new InvalidOperationException(
-                        "Das Diktat war für eine einzelne Übertragung zu groß. " +
-                        "Lumi hat es bereits geteilt; bitte die Aufnahme etwas kürzer wiederholen."),
+                        "Groq hat die Audiodatei trotz Lumis Größenbegrenzung abgelehnt. " +
+                        "Bitte die Aufnahme etwas kürzer wiederholen."),
                 HttpStatusCode.TooManyRequests =>
                     new InvalidOperationException(
                         "Groq ist gerade ausgelastet oder das Nutzungslimit wurde erreicht. " +
@@ -262,5 +302,27 @@ namespace Lumi.Services.Speech
             string.IsNullOrWhiteSpace(detail) ? "" : $": {detail}";
 
         public void Dispose() => _http.Dispose();
+    }
+
+    public sealed class PartialTranscriptionException : InvalidOperationException
+    {
+        public string PartialTranscript { get; }
+        public int FailedChunk { get; }
+        public int ChunkCount { get; }
+
+        public PartialTranscriptionException(
+            string partialTranscript,
+            int failedChunk,
+            int chunkCount,
+            Exception innerException)
+            : base(
+                $"Teil {failedChunk} von {chunkCount} konnte nicht transkribiert werden. " +
+                "Der bereits erkannte Text wurde in der Diktat-Historie gesichert.",
+                innerException)
+        {
+            PartialTranscript = partialTranscript;
+            FailedChunk = failedChunk;
+            ChunkCount = chunkCount;
+        }
     }
 }

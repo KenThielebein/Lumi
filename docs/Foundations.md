@@ -128,7 +128,13 @@ Einziger globaler Hotkey. Alles ergibt sich aus Tipp-Länge und -Frequenz:
 ```csharp
 const int ShortPressMs    = 200;   // unter 200ms = kurz (Toggle)
 const int DoubleTapMs     = 400;   // zwei Klicks innerhalb 400ms = Modus
+const int ChordGraceMs     = 55;   // J knapp vor Win puffern, sonst J nachreichen
 ```
+
+Ein physisches `J`, das höchstens 55 ms vor der Win-Taste eintrifft, wird kurz
+gepuffert. Folgt Win, gehört es vollständig zur Lumi-Sequenz; folgt Win nicht,
+wird die normale J-Eingabe unverändert nachgereicht. Eine bereits sichtbare
+Eingabe darf niemals nachträglich per Backspace entfernt werden.
 
 ### Warum Win + J?
 - Windows 11 belegt Win+J inzwischen für Recall; Lumi fängt die Kombination
@@ -191,7 +197,11 @@ Lumi arbeitet auf Windows-Ebene und funktioniert in nahezu jeder App:
 | Spiele / Vollbild-Apps | ❌ | ❌ | Hotkeys oft blockiert |
 | UAC-Dialoge | ❌ | ❌ | Windows sperrt dort alles |
 
-**Clipboard-Trick:** Lumi sichert den aktuellen Clipboard-Inhalt, liest/schreibt, stellt ihn danach wieder her (~100ms, für den Nutzer unsichtbar).
+**Direkte Diktateingabe:** Diktate und bestätigte Ersetzungen werden als
+Unicode-Tastatureingabe direkt am Cursor eingefügt. Die Zwischenablage bleibt
+dabei vollständig unberührt. Nur das Lesen einer markierten Auswahl und
+ausdrückliche Kopieraktionen verwenden das Clipboard; ein voriger Inhalt wird
+beim Lesen anschließend wiederhergestellt.
 
 **Kompatibilitätsmodus** (für Gmail, Notion etc.): Statt Strg+V wird der Text Zeichen für Zeichen via SendKeys eingefügt – langsamer aber universell. Konfigurierbar pro App.
 

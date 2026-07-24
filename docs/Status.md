@@ -13,8 +13,8 @@ Nach jeder erledigten Aufgabe:
 
 ## Aktueller Stand
 **Aktive Phase:** Phase 6 – Update-System & Release
-**Letzte Änderung:** 2026-07-16 – Lumi 4.5.2 mit deutschem GitHub-Release, EXE, Portable-ZIP und aktualisierter GitHub-Pages-Seite veröffentlicht
-**Nächste Aufgabe:** Version 4.5.2 mit einem langen realen Diktat prüfen; danach NSIS-Installer, Win+H-Hinweis und Update-Check
+**Letzte Änderung:** 2026-07-24 – Version 4.5.4 auf GitHub veröffentlicht und GitHub-Pages-Website mit Download und Versionshinweisen aktualisiert
+**Nächste Aufgabe:** Version 4.5.4 auf dem Ziel-Notebook praktisch mit Win→J, J→Win und einem langen realen Diktat testen; danach alternative Tastenkombination, NSIS-Installer, Win+H-Hinweis und Update-Check umsetzen
 
 ---
 
@@ -128,6 +128,7 @@ Lauffähiges WPF-Fenster als transparente "Pille", zeigt/versteckt sich per Hotk
 - [x] Push-to-talk-Diktat: natürliche Sprechpausen stoppen die Aufnahme nicht; Verarbeitung erst nach vollständigem Loslassen von Win+J
 - [x] Win+J vollständig im Low-Level-Hook abfangen, damit Windows 11 nicht Recall oder ein anderes Systemfenster öffnet
 - [x] Lange Diktate: STT-Timeout auf 180s pro Versuch, automatische Wiederholung und sichere WAV-Teilung ab 16 MB
+- [x] Diktate und bestätigte Ersetzungen direkt per Unicode-Tastatureingabe einfügen, ohne die Zwischenablage zu verändern
 - ~~Provider-Switcher (Ollama / LM Studio) – gestrichen~~
 
 ---
@@ -143,11 +144,16 @@ Lauffähiges WPF-Fenster als transparente "Pille", zeigt/versteckt sich per Hotk
 - [x] GitHub Actions: Git-Tag `vX.Y.Z` → versionierter Build → GitHub Release mit automatisch erzeugtem Begleittext
 - [x] Version 4.5.1 über Tag `v4.5.1` veröffentlicht (EXE + Portable-ZIP + automatisch erzeugte Release Notes)
 - [x] Version 4.5.2 über Tag `v4.5.2` veröffentlicht (EXE + Portable-ZIP + ausführlicher deutscher Release-Text)
+- [x] Version 4.5.3 lokal gebaut: korrekte physische Loslassprüfung und Strg- statt F15-Maskierung gegen Notebook-Bildschirmflackern
+- [x] Version 4.5.3 auf dem Ziel-Notebook gestartet, Autostart repariert und per Win+J praktisch bestätigt
+- [x] Version 4.5.4 lokal gebaut: 55-ms-Chord-Puffer gegen sichtbares J, ereignisbasierter Audio-Stopp, kürzerer Einfüge-Nachlauf und verlustsichere Langdiktat-Fehlerbehandlung
+- [x] Version 4.5.4 über Tag `v4.5.4` auf GitHub veröffentlicht (EXE + Portable-ZIP)
 - [x] Release-EXE (self-contained, win-x64, 156 MB) unter `src/bin/Release/.../publish/Lumi.exe`
 - [x] Statische Landingpage unter `website/index.html` mit Downloadlink, Nutzungserklärung und API-Key-Anleitung
 - [x] Landingpage für GitHub Pages vorbereitet: lokales Icon, `.nojekyll`, GitHub-Release-Downloadlink als Platzhalter
 - [x] GitHub-Pages-Landingpage auf die zwei Modi und Version 4.5.1 aktualisiert; Versionsnummer, Download und Dateigröße folgen künftig automatisch dem Latest-Release
 - [x] GitHub-Pages-Landingpage auf Version 4.5.2, lange Diktate und die Abschirmung gegen Windows Recall aktualisiert und live geprüft
+- [x] GitHub-Pages-Landingpage auf Version 4.5.4, Hotkey-Reparatur, kürzeren Nachlauf und gesicherte Langdiktate aktualisiert
 
 ---
 
@@ -180,6 +186,11 @@ Lumi auf die beiden alltagstauglichen Kernfunktionen Diktat und Vorschlag konzen
 | 5 | Diktat-Modus: Text landete in Windows-Suchleiste statt am Cursor | ✅ Behoben: KeyUp(LWIN/RWIN) + 100ms vor Ctrl+V in TextManipulationService |
 | 6 | Längere Push-to-talk-Diktate stoppten bei Sprechpausen; Verarbeitung bei noch gehaltener Win-Taste löste Windows-Kürzel aus | ✅ Behoben: VAD nur noch für Freihand-Diktat, vollständige Tastenfreigabe vor Verarbeitung |
 | 7 | Aktuelle Windows-11-Versionen verwenden Win+J für Recall und konnten Lumi die Tastenkombination entziehen | ✅ Behoben: Win+J wird vollständig im WH_KEYBOARD_LL-Hook erkannt und unterdrückt |
+| 8 | Diktate wurden über Strg+V eingefügt; verzögertes Lesen konnte den vorherigen Inhalt der Zwischenablage unbrauchbar machen | ✅ Behoben: Direkte Unicode-Eingabe ohne Clipboard-Zugriff |
+| 9 | Version 4.5.2 meldete nach jedem Push-to-talk fälschlich, Win+J sei noch gedrückt | ✅ Behoben: Die Loslassprüfung verwendet den physischen Zustand aus dem Low-Level-Hook; Mikrofon separat mit NAudio verifiziert |
+| 10 | Beim Drücken von Win+J flackerte der Notebook-Bildschirm kurz | ✅ Behoben und praktisch bestätigt: F15-Maskierung in 4.5.3 durch kurzen Strg-Impuls ersetzt |
+| 11 | Wenn J knapp vor Win eintraf, erschien erst „j“ und Lumi startete verzögert beim Auto-Repeat | ✅ Behoben in 4.5.4: J wird 55 ms gepuffert und bei ausbleibendem Win unverändert nachgereicht |
+| 12 | Ein Einfüge- oder später Chunkfehler konnte ein bereits transkribiertes Langdiktat unzugänglich machen | ✅ Behoben in 4.5.4: erkannte Texte bleiben in der Diktat-Historie; technische Metadaten können opt-in geloggt werden |
 
 ---
 
@@ -261,3 +272,11 @@ Lumi auf die beiden alltagstauglichen Kernfunktionen Diktat und Vorschlag konzen
 | 2026-07-16 | Win+J vollständig im Low-Level-Hook | Windows 11 belegt Win+J inzwischen für Recall; Lumi unterdrückt die physische J-Sequenz und neutralisiert die Win-Taste mit F15, bevor Windows sie auswertet |
 | 2026-07-16 | Lange Groq-Transkriptionen werden fehlertolerant | Das frühere 30s-Limit war für längere Aufnahmen zu knapp; jetzt gelten 180s pro Versuch, bis zu drei Versuche und eine 16-MB-WAV-Teilung |
 | 2026-07-16 | Version 4.5.2 | Recall-Hotkey-Abschirmung und robuste Langdiktat-Transkription wurden mit EXE, Portable-ZIP, deutschem Release-Text und aktualisierter Website veröffentlicht |
+| 2026-07-16 | Direkte Texteingabe ohne Clipboard | Diktate und bestätigte Ersetzungen werden per SendInput als Unicode-Tastaturereignisse eingefügt; vorhandene Zwischenablageinhalte bleiben verfügbar |
+| 2026-07-17 | Version 4.5.3 | Der vollständig unterdrückte J-KeyUp erreicht den Windows-Tastenzustand nicht zuverlässig; die Pipeline fragt deshalb den bereits im Low-Level-Hook gepflegten physischen Zustand von Win und J ab |
+| 2026-07-17 | Strg-Maskierung statt F15 | Die künstliche F15-Taste kann auf Notebook-Hilfssoftware sichtbare Reaktionen auslösen; ein kurzer injizierter Strg-Impuls neutralisiert die Win-Sequenz ohne Funktionstastenereignis |
+| 2026-07-20 | 55-ms-Chord-Puffer für J-vor-Win | Nahezu gleichzeitige Tasten können in umgekehrter Reihenfolge eintreffen; kurzes Puffern verhindert sichtbares J, ohne fremden Text per Backspace zu verändern |
+| 2026-07-20 | Ereignisbasierter Diktat-Nachlauf | NAudio `RecordingStopped` ersetzt das blinde 100-ms-Warten; nach bestätigter Hotkey-Freigabe genügen 15 ms Stabilisierung und 30 ms vor Unicode-Eingabe |
+| 2026-07-20 | Langdiktate bleiben wiederherstellbar | Teiltranskripte und fertige Texte werden bei späterem Chunk- oder SendInput-Fehler in der Historie gesichert; opt-in Logs enthalten nur technische Metadaten |
+| 2026-07-20 | Version 4.5.4 | Hotkey-Reihenfolge, Diktat-Latenz und Fehlerrobustheit werden als lokaler Patch-Release gebündelt |
+| 2026-07-24 | Version 4.5.4 veröffentlicht | GitHub-Release, Download-Fallback, README und GitHub-Pages-Website zeigen denselben freigegebenen Stand |

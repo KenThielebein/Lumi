@@ -78,7 +78,8 @@ Diese Datei beschreibt wie die Komponenten zusammenspielen. Halte dich an diese 
     → Overlay: State = Processing
     → GroqSTTClient.TranscribeAsync(wavData) → string rawText
     → MemoryService.ApplyVocabulary(rawText) → string dictatedText
-    → InputSimulator.TypeText(dictatedText)
+    → SendInput Unicode-Tastaturereignisse direkt am Cursor
+      (Zwischenablage bleibt unverändert)
     → Overlay: kurz "✓" zeigen → State = Idle
 ```
 
@@ -180,9 +181,11 @@ public interface ITextToSpeech
 
 public interface ITextManipulationService
 {
-    string? GetSelectedText();
-    void InsertTextAtCursor(string text);
-    void SaveAndRestoreClipboard(Action action);
+    Task<string?> GetSelectedTextAsync(IntPtr sourceHwnd = default);
+    Task InsertTextAtCursorAsync(string text);
+    Task<bool> ReplaceSelectionIfMatchesAsync(
+        IntPtr sourceHwnd, string expectedText, string replacement);
+    Task CopyTextAsync(string text);
 }
 ```
 
@@ -246,8 +249,10 @@ private static extern IntPtr SetWindowsHookEx(
     int idHook, LowLevelKeyboardProc callback, IntPtr module, uint threadId);
 
 // Der Hook unterdrückt physische J-Down/Repeat/Up-Ereignisse der aktiven
-// Win+J-Sequenz. Ein injiziertes neutrales F15 verhindert, dass Windows beim
-// Loslassen der Win-Taste das Startmenü öffnet.
+// Win+J-Sequenz. Ein kurzer injizierter Strg-Impuls verhindert, dass Windows
+// beim Loslassen der Win-Taste das Startmenü öffnet, ohne eine Funktionstaste
+// auszulösen. Trifft J wenige Millisekunden vor Win ein, hält ein 55-ms-
+// Chord-Puffer das erste J zurück und reicht es nur dann nach, wenn Win ausbleibt.
 ```
 
 > ℹ️ Win+J öffnet in aktuellen Windows-11-Versionen Recall. Lumi verarbeitet
@@ -262,8 +267,10 @@ private static extern IntPtr SetWindowsHookEx(
 |---|---|
 | Kein Mikrofon | Overlay zeigt Fehler-Icon + Tooltip |
 | API Key fehlt | Overlay → Einstellungen öffnen |
-| STT Timeout / temporärer Netzwerkfehler | Bis zu 3 Versuche mit 180s pro Versuch; danach verständliche Fehlermeldung |
+| STT Timeout / temporärer Netzwerkfehler | Drei adaptive Versuche mit 60s, 120s und 180s; danach verständliche Fehlermeldung |
 | Sehr lange Aufnahme (>16 MB WAV) | In sichere WAV-Teile zerlegen und nacheinander transkribieren |
+| Später WAV-Teil schlägt fehl | Bereits transkribierte Teile in der Diktat-Historie sichern |
+| Direkte Texteingabe scheitert | Transkript in der Diktat-Historie sichern; Teilübertragung bis zu dreimal fortsetzen |
 | Rate Limit (429) | Exponentielles Retry, max. 3 Versuche |
 | Netzwerk offline | SAPI-Fallback für TTS, kein STT möglich |
 

@@ -1,10 +1,11 @@
 using System;
+using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Lumi.Services.AI;
 using Lumi.Services.Audio;
+using Lumi.Services.Diagnostics;
 using Lumi.Services.Memory;
 using Lumi.Services.Speech;
 using Lumi.Services.TextManipulation;
@@ -14,11 +15,6 @@ namespace Lumi.Core
 {
     public class PipelineOrchestrator : IDisposable
     {
-        [DllImport("user32.dll")]
-        private static extern short GetAsyncKeyState(int vKey);
-        private const int VkJ = 0x4A;
-        private const int VkLWin = 0x5B;
-        private const int VkRWin = 0x5C;
         private const int HotkeyReleaseTimeoutMs = 5_000;
         private readonly AudioService             _audio;
         private readonly ISpeechToText            _stt;
@@ -28,6 +24,7 @@ namespace Lumi.Core
         private readonly MemoryService            _memory;
         private readonly OverlayWindow            _overlay;
         private readonly ModeController           _mode;
+        private readonly Func<bool>                _areHotkeyKeysDown;
         private readonly SemaphoreSlim            _processingGate = new(1, 1);
 
         private AppMode? _forcedModeForCurrentRecording;
@@ -45,7 +42,8 @@ namespace Lumi.Core
         public PipelineOrchestrator(
             AudioService audio, ISpeechToText stt, ISmoothingService smoother,
             IAIProvider llm, ITextToSpeech tts, ITextManipulationService text,
-            MemoryService memory, OverlayWindow overlay, ModeController mode)
+            MemoryService memory, OverlayWindow overlay, ModeController mode,
+            Func<bool> areHotkeyKeysDown)
         {
             _audio   = audio;
             _stt     = stt;
@@ -55,6 +53,7 @@ namespace Lumi.Core
             _memory  = memory;
             _overlay = overlay;
             _mode    = mode;
+            _areHotkeyKeysDown = areHotkeyKeysDown;
 
             _audio.SilenceDetected += OnSilenceDetected;
         }
@@ -97,6 +96,10 @@ namespace Lumi.Core
             }
             catch (Exception ex)
             {
+                LumiDiagnostics.Write(
+                    "pipeline_error",
+                    ("error_type", ex.GetType().Name),
+                    ("hresult", ex.HResult));
                 _overlay.ShowError(ex.Message);
             }
             finally
@@ -114,7 +117,13 @@ namespace Lumi.Core
             var isPushToTalkRecording = _forcedModeForCurrentRecording == null;
             var mode = _forcedModeForCurrentRecording ?? _mode.CurrentMode;
             _overlay.SetState(OverlayState.Processing);
+            var stopTimer = Stopwatch.StartNew();
             var wavData = await _audio.StopRecordingAsync();
+            LumiDiagnostics.Write(
+                "audio_stopped",
+                ("mode", mode),
+                ("bytes", wavData.Length),
+                ("elapsed_ms", stopTimer.ElapsedMilliseconds));
 
             // Das erste Loslassen von Win oder J beendet aus Privacy-Gründen sofort
             // die Aufnahme. Tastatur- und Clipboard-Aktionen dürfen aber erst starten,
@@ -149,17 +158,18 @@ namespace Lumi.Core
                 await RunSuggestionAsync(wavData);
         }
 
-        private static async Task<bool> WaitForHotkeyReleaseAsync()
+        private async Task<bool> WaitForHotkeyReleaseAsync()
         {
             var deadline = Environment.TickCount64 + HotkeyReleaseTimeoutMs;
             while (Environment.TickCount64 < deadline)
             {
-                var isDown = (GetAsyncKeyState(VkJ) & 0x8000) != 0 ||
-                             (GetAsyncKeyState(VkLWin) & 0x8000) != 0 ||
-                             (GetAsyncKeyState(VkRWin) & 0x8000) != 0;
-                if (!isDown)
+                // Der Low-Level-Hook unterdrückt J-Up absichtlich vor Windows.
+                // Deshalb ist GetAsyncKeyState für J hier nicht verlässlich.
+                // Der Hook selbst sieht aber jedes physische Up-Event und hält
+                // den tatsächlichen Zustand in HotkeyManager aktuell.
+                if (!_areHotkeyKeysDown())
                 {
-                    await Task.Delay(40);
+                    await Task.Delay(15);
                     return true;
                 }
                 await Task.Delay(20);
@@ -188,7 +198,33 @@ namespace Lumi.Core
 
         private async Task RunDictationAsync(byte[] wavData)
         {
-            var transcript = await _stt.TranscribeAsync(wavData);
+            string transcript;
+            var sttTimer = Stopwatch.StartNew();
+            try
+            {
+                transcript = await _stt.TranscribeAsync(wavData);
+                LumiDiagnostics.Write(
+                    "stt_completed",
+                    ("audio_bytes", wavData.Length),
+                    ("elapsed_ms", sttTimer.ElapsedMilliseconds),
+                    ("characters", transcript.Length));
+            }
+            catch (PartialTranscriptionException ex)
+            {
+                LumiDiagnostics.Write(
+                    "stt_partial_error",
+                    ("audio_bytes", wavData.Length),
+                    ("elapsed_ms", sttTimer.ElapsedMilliseconds),
+                    ("failed_chunk", ex.FailedChunk),
+                    ("chunk_count", ex.ChunkCount),
+                    ("error_type", ex.InnerException?.GetType().Name));
+                var partialText = _memory.ApplyVocabulary(ex.PartialTranscript);
+                if (!string.IsNullOrWhiteSpace(partialText))
+                    _overlay.ShowDictationResult(partialText, openEditor: false);
+                _overlay.ShowError(ex.Message);
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(transcript))
             {
                 _overlay.SetState(OverlayState.Idle);
@@ -206,10 +242,35 @@ namespace Lumi.Core
 
             if (_overlay.InsertDictationImmediately)
             {
-                if (_beforeTextInsertAsync != null)
-                    await _beforeTextInsertAsync();
+                var insertTimer = Stopwatch.StartNew();
+                try
+                {
+                    if (_beforeTextInsertAsync != null)
+                        await _beforeTextInsertAsync();
 
-                await _text.InsertTextAtCursorAsync(text.TrimEnd() + " ");
+                    await _text.InsertTextAtCursorAsync(text.TrimEnd() + " ");
+                    LumiDiagnostics.Write(
+                        "insert_completed",
+                        ("characters", text.Length),
+                        ("elapsed_ms", insertTimer.ElapsedMilliseconds));
+                }
+                catch (Exception ex)
+                {
+                    LumiDiagnostics.Write(
+                        "insert_error",
+                        ("characters", text.Length),
+                        ("elapsed_ms", insertTimer.ElapsedMilliseconds),
+                        ("error_type", ex.GetType().Name),
+                        ("hresult", ex.HResult));
+                    // Die teure Transkription darf bei einem Fokus-/SendInput-
+                    // Problem nicht verloren gehen. Verlauf 1 bleibt anklickbar.
+                    _beforeTextInsertAsync = null;
+                    _overlay.ShowDictationResult(text, openEditor: false);
+                    _overlay.ShowError(
+                        "Einfügen nicht möglich – das Diktat ist unter „1“ gesichert. " +
+                        ex.Message);
+                    return;
+                }
             }
 
             _beforeTextInsertAsync = null;
@@ -332,7 +393,15 @@ namespace Lumi.Core
                 "untertitel im auftrag des zdf";
         }
 
-        public void Dispose() =>
+        public void Dispose()
+        {
             _audio.SilenceDetected -= OnSilenceDetected;
+            if (_stt is IDisposable sttDisposable)
+                sttDisposable.Dispose();
+            if (_smoother is IDisposable smootherDisposable)
+                smootherDisposable.Dispose();
+            if (_llm is IDisposable llmDisposable)
+                llmDisposable.Dispose();
+        }
     }
 }
