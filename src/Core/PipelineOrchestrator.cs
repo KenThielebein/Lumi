@@ -125,13 +125,13 @@ namespace Lumi.Core
                 ("bytes", wavData.Length),
                 ("elapsed_ms", stopTimer.ElapsedMilliseconds));
 
-            // Das erste Loslassen von Win oder J beendet aus Privacy-Gründen sofort
+            // Das erste Loslassen von Strg oder # beendet aus Privacy-Gründen sofort
             // die Aufnahme. Tastatur- und Clipboard-Aktionen dürfen aber erst starten,
             // wenn beide Tasten physisch oben sind. Andernfalls interpretiert Windows
-            // Ctrl+C/V oder weitere Eingaben als unerwünschte Win-Kürzel.
+            // nachfolgende Eingaben möglicherweise noch als Strg-Kürzel.
             if (isPushToTalkRecording && !await WaitForHotkeyReleaseAsync())
             {
-                _overlay.ShowError("Win+J vollständig loslassen und erneut versuchen.");
+                _overlay.ShowError("Strg+# vollständig loslassen und erneut versuchen.");
                 return;
             }
 
@@ -140,7 +140,7 @@ namespace Lumi.Core
                 _selectedText = await _text.GetSelectedTextAsync(_sourceWindow);
                 if (string.IsNullOrWhiteSpace(_selectedText))
                 {
-                    _overlay.ShowError("Keine Auswahl erkannt. Text markieren und Win+J erneut halten.");
+                    _overlay.ShowError("Keine Auswahl erkannt. Text markieren und Strg+# erneut halten.");
                     return;
                 }
             }
@@ -163,8 +163,8 @@ namespace Lumi.Core
             var deadline = Environment.TickCount64 + HotkeyReleaseTimeoutMs;
             while (Environment.TickCount64 < deadline)
             {
-                // Der Low-Level-Hook unterdrückt J-Up absichtlich vor Windows.
-                // Deshalb ist GetAsyncKeyState für J hier nicht verlässlich.
+                // Der Low-Level-Hook unterdrückt #-Up absichtlich vor Windows.
+                // Deshalb ist GetAsyncKeyState für # hier nicht verlässlich.
                 // Der Hook selbst sieht aber jedes physische Up-Event und hält
                 // den tatsächlichen Zustand in HotkeyManager aktuell.
                 if (!_areHotkeyKeysDown())
@@ -181,7 +181,7 @@ namespace Lumi.Core
         private async void OnSilenceDetected(object? sender, EventArgs e)
         {
             // Stille beendet ausschließlich eine bewusst gestartete Freihand-Aufnahme.
-            // Push-to-talk läuft in beiden Modi bis Win oder J losgelassen wird; natürliche
+            // Push-to-talk läuft in beiden Modi bis Strg oder # losgelassen wird; natürliche
             // Sprechpausen dürfen längere Diktate nicht mitten im Satz abschneiden.
             if (_forcedModeForCurrentRecording != AppMode.Dictation)
                 return;

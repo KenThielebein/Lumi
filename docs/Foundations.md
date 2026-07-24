@@ -111,14 +111,14 @@ public interface IAudioService
 
 ## Hotkey-System
 
-### Primärer Hotkey: Win + J
+### Primärer Hotkey: Strg + #
 Einziger globaler Hotkey. Alles ergibt sich aus Tipp-Länge und -Frequenz:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Win + J  (< 200ms)     → Pille ein-/ausblenden            │
-│  Win + J  (> 200ms)     → Push-to-Talk: halten = aufnehmen │
-│  Win + J  (2x < 400ms)  → Modus wechseln                   │
+│  Strg + #  (< 200ms)     → Pille ein-/ausblenden            │
+│  Strg + #  (> 200ms)     → Push-to-Talk: halten = aufnehmen │
+│  Strg + #  (2x < 400ms)  → Modus wechseln                   │
 │  Esc                    → Abbrechen, Pille schließen        │
 │  Pfeil ↑  (Pille aktiv) → Letzte Antwort wiederholen       │
 └─────────────────────────────────────────────────────────────┘
@@ -128,25 +128,27 @@ Einziger globaler Hotkey. Alles ergibt sich aus Tipp-Länge und -Frequenz:
 ```csharp
 const int ShortPressMs    = 200;   // unter 200ms = kurz (Toggle)
 const int DoubleTapMs     = 400;   // zwei Klicks innerhalb 400ms = Modus
-const int ChordGraceMs     = 55;   // J knapp vor Win puffern, sonst J nachreichen
+const int ChordGraceMs     = 55;   // # knapp vor Strg puffern, sonst # nachreichen
 ```
 
-Ein physisches `J`, das höchstens 55 ms vor der Win-Taste eintrifft, wird kurz
-gepuffert. Folgt Win, gehört es vollständig zur Lumi-Sequenz; folgt Win nicht,
-wird die normale J-Eingabe unverändert nachgereicht. Eine bereits sichtbare
+Die physische Rautentaste einer deutschen Tastatur (Scan-Code `0x2B`), die
+höchstens 55 ms vor einer Strg-Taste eintrifft, wird kurz gepuffert. Folgt Strg,
+gehört sie vollständig zur Lumi-Sequenz; folgt Strg nicht, wird die normale
+Rauteneingabe unverändert nachgereicht. Eine bereits sichtbare
 Eingabe darf niemals nachträglich per Backspace entfernt werden.
 
 Der Low-Level-Hook unterscheidet Lumi-eigene synthetische Eingaben über einen
 eindeutigen Marker von Eingaben anderer Tastaturtreiber, OEM-Hotkeydienste oder
 Remoting-Lösungen. Nur Lumi-eigene Ereignisse werden übersprungen. Fremd als
-`injected` markierte Win-/J-Ereignisse gehören weiterhin zur Hotkey-Erkennung,
-damit Windows Recall und dessen Windows-Hello-Abfrage nicht geöffnet werden.
+`injected` markierte Strg-/Raute-Ereignisse gehören weiterhin zur
+Hotkey-Erkennung. Die `SendInput`-Strukturen enthalten die vollständige
+64-Bit-Union, damit Replay-Ereignisse auf allen x64-Rechnern gültig sind.
 
-### Warum Win + J?
-- Windows 11 belegt Win+J inzwischen für Recall; Lumi fängt die Kombination
-  deshalb vollständig im Low-Level-Keyboard-Hook ab, bevor Windows sie auswertet
-- Leicht erreichbar, kein Konflikt mit DE-Keyboard-Layout
-- Konfigurierbar in den Einstellungen falls gewünscht
+### Warum Strg + #?
+- keine Windows-Taste und damit kein Konflikt mit Recall oder Windows Hello
+- auf deutschen Tastaturen eindeutig und mit der rechten Hand bedienbar
+- linke und rechte Strg-Taste werden akzeptiert
+- die Kombination wird vollständig im Low-Level-Keyboard-Hook verarbeitet
 - ⚠️ Win + H (Microsoft Voice Typing) ist unser direkter Konkurrent – in Lumi-Einstellungen Hinweis einblenden
 
 ---
@@ -156,17 +158,17 @@ damit Windows Recall und dessen Windows-Hello-Abfrage nicht geöffnet werden.
 Der aktive Modus wird dauerhaft gespeichert. Bestehende Konfigurationen mit `Conversation` werden beim Laden auf `Dictation`, `TextEdit` auf `Suggestion` migriert.
 
 ### Modus 1: Diktat 🎤 (Standard)
-- Win+J halten → Groq STT → persönliches Wörterbuch → Text direkt am Cursor
+- Strg+# halten → Groq STT → persönliches Wörterbuch → Text direkt am Cursor
 - Kein LLM-Call im Normalweg; minimale Latenz
 - Wahlweise sofort einfügen oder zuerst in der Diktat-Historie nachbearbeiten
 
 ### Modus 2: Vorschlag ✏️
 ```
 1. Text in beliebiger App markieren
-2. Win+J halten
+2. Strg+# halten
 3. Sprachbefehl sprechen: "Mach das formeller"
-4. Win+J loslassen
-5. Erst jetzt liest Lumi den markierten Text (kein Konflikt mit gehaltener Win-Taste)
+4. Strg+# loslassen
+5. Erst jetzt liest Lumi den markierten Text
 6. Das LLM erzeugt einen Vorschlag
 7. Vorschau: Ersetzen, Kopieren, Neu versuchen oder Abbrechen
 8. Vor dem Ersetzen prüft Lumi Zielanwendung und Auswahl; bei verlorener Auswahl wird sicher kopiert

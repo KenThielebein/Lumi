@@ -18,9 +18,10 @@ namespace Lumi.Core
     }
 
     /// <summary>
-    /// Erkennt Win+J vollständig im Low-Level-Keyboard-Hook.
-    /// Windows 11 verwendet Win+J inzwischen selbst (Recall). Deshalb darf die
-    /// Kombination nicht mehr von RegisterHotKey oder Windows ausgewertet werden.
+    /// Erkennt Strg+# vollständig im Low-Level-Keyboard-Hook.
+    /// Die Rautentaste wird über ihre physische Position auf einer deutschen
+    /// Tastatur erkannt, damit weder Windows- noch sprachabhängige Symbol-
+    /// Kombinationen den Lumi-Hotkey übernehmen.
     /// </summary>
     public sealed class HotkeyManager : IDisposable
     {
@@ -53,15 +54,16 @@ namespace Lumi.Core
         private const int WmKeyUp = 0x0101;
         private const int WmSysKeyDown = 0x0104;
         private const int WmSysKeyUp = 0x0105;
-        private const int VkLWin = 0x5B;
-        private const int VkRWin = 0x5C;
-        private const int VkJ = 0x4A;
         private const int VkControl = 0x11;
+        private const int VkLControl = 0xA2;
+        private const int VkRControl = 0xA3;
         private const int VkEscape = 0x1B;
         private const int VkReturn = 0x0D;
-        private const int LlkHfInjected = 0x10;
+        private const uint HashKeyScanCode = 0x2B;
+        private const uint LlkHfInjected = 0x10;
         private const uint InputKeyboard = 1;
         private const uint KeyEventFKeyUp = 0x0002;
+        private const uint KeyEventFScanCode = 0x0008;
         private const uint LumiInputMarkerValue = 0x4C554D49; // "LUMI"
         private static readonly UIntPtr LumiInputMarker = new(LumiInputMarkerValue);
 
@@ -94,6 +96,10 @@ namespace Lumi.Core
         {
             [FieldOffset(0)]
             public KEYBDINPUT Keyboard;
+            [FieldOffset(0)]
+            public MOUSEINPUT Mouse;
+            [FieldOffset(0)]
+            public HARDWAREINPUT Hardware;
         }
 
         [StructLayout(LayoutKind.Sequential)]
@@ -106,35 +112,54 @@ namespace Lumi.Core
             public UIntPtr ExtraInfo;
         }
 
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MOUSEINPUT
+        {
+            public int X;
+            public int Y;
+            public uint MouseData;
+            public uint Flags;
+            public uint Time;
+            public UIntPtr ExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HARDWAREINPUT
+        {
+            public uint Message;
+            public ushort ParameterLow;
+            public ushort ParameterHigh;
+        }
+
         private readonly LowLevelKeyboardProc _hookProc;
-        private readonly object _pendingJSync = new();
+        private readonly object _pendingHashSync = new();
         private IntPtr _hookId;
 
-        private volatile bool _leftWinDown;
-        private volatile bool _rightWinDown;
-        private volatile bool _jDown;
+        private volatile bool _leftControlDown;
+        private volatile bool _rightControlDown;
+        private volatile bool _genericControlDown;
+        private volatile bool _hashDown;
         private volatile bool _sessionActive;
         private volatile bool _longFired;
-        private volatile bool _suppressJUntilKeyUp;
-        private volatile bool _pendingJ;
-        private volatile bool _jCommittedToSystem;
-        private volatile bool _suppressLeftWinUntilKeyUp;
-        private volatile bool _suppressRightWinUntilKeyUp;
+        private volatile bool _suppressHashUntilKeyUp;
+        private volatile bool _pendingHash;
+        private volatile bool _hashCommittedToSystem;
         private volatile bool _ignoreCurrentRelease;
         private volatile bool _enterDown;
         private int _sessionGeneration;
-        private int _pendingJGeneration;
+        private int _pendingHashGeneration;
         private DateTime _lastTapStarted = DateTime.MinValue;
         private int _tapCount;
 
-        /// <summary>Vordergrundfenster exakt zum Zeitpunkt des Win+J-Drückens.</summary>
+        /// <summary>Vordergrundfenster exakt zum Zeitpunkt des Strg+#-Drückens.</summary>
         public IntPtr ForegroundWindowOnPress { get; private set; }
 
         public event EventHandler<HotkeyEvent>? HotkeyFired;
         public event EventHandler? EscapePressed;
         public event EventHandler? ConfirmPressed;
         public bool SuggestionConfirmationActive { get; set; }
-        public bool AreHotkeyKeysDown => _leftWinDown || _rightWinDown || _jDown;
+        public bool AreHotkeyKeysDown =>
+            IsAnyControlTrackedDown() || _hashDown;
 
         public HotkeyManager()
         {
@@ -169,11 +194,9 @@ namespace Lumi.Core
             var isDown = message == WmKeyDown || message == WmSysKeyDown;
             var isUp = message == WmKeyUp || message == WmSysKeyUp;
 
-            // Nur von Lumi selbst nachgereichte Tastenereignisse überspringen.
-            // Manche Tastaturtreiber, Remoting-Lösungen und OEM-Hotkeydienste
-            // kennzeichnen echte Benutzereingaben ebenfalls als "injected".
-            // Würden wir alle solchen Ereignisse ignorieren, sähe Windows die
-            // komplette Win+J-Folge und öffnete Recall samt Windows-Hello-Abfrage.
+            // Nur Lumi-eigene Replay-Ereignisse überspringen. Tastaturtreiber,
+            // OEM-Dienste und Remoting können echte Eingaben als "injected"
+            // kennzeichnen und müssen weiterhin als Benutzereingabe gelten.
             if (isOwnInjectedInput)
                 return CallNextHookEx(_hookId, nCode, wParam, lParam);
 
@@ -197,87 +220,66 @@ namespace Lumi.Core
                 return new IntPtr(1);
             }
 
-            if (vk == VkLWin)
+            if (IsControlKey(vk))
             {
-                _leftWinDown = isDown || (!isUp && _leftWinDown);
-                if (isDown && TryHandleJBeforeWindows(leftWindowsKey: true))
-                    return new IntPtr(1);
+                TrackControlKey(vk, isDown, isUp);
+
+                if (isDown)
+                    BeginPendingHashSessionIfPossible();
+
                 if (isUp && _sessionActive)
                     EndSession();
-                if (isUp && _suppressLeftWinUntilKeyUp)
-                {
-                    _suppressLeftWinUntilKeyUp = false;
-                    return new IntPtr(1);
-                }
             }
-            else if (vk == VkRWin)
-            {
-                _rightWinDown = isDown || (!isUp && _rightWinDown);
-                if (isDown && TryHandleJBeforeWindows(leftWindowsKey: false))
-                    return new IntPtr(1);
-                if (isUp && _sessionActive)
-                    EndSession();
-                if (isUp && _suppressRightWinUntilKeyUp)
-                {
-                    _suppressRightWinUntilKeyUp = false;
-                    return new IntPtr(1);
-                }
-            }
-            else if (vk == VkJ)
+            else if (IsHashKey(hookData.ScanCode))
             {
                 if (isDown)
                 {
-                    var wasAlreadyDown = _jDown;
-                    _jDown = true;
+                    var wasAlreadyDown = _hashDown;
+                    _hashDown = true;
 
-                    // Wurde ein normales J nach dem kurzen Chord-Fenster bereits
-                    // an Windows weitergegeben, bleiben auch seine Auto-Repeats
-                    // normale Texteingabe. Ein deutlich später gedrücktes Win darf
-                    // daraus keine Lumi-Session mehr machen.
-                    if (IsJCommittedToSystem())
+                    // Nach dem kurzen Chord-Fenster bleibt eine gehaltene
+                    // Rautentaste normale Texteingabe. Ein erst später gedrücktes
+                    // Strg darf daraus keine Lumi-Session mehr machen.
+                    if (IsHashCommittedToSystem())
                         return CallNextHookEx(_hookId, nCode, wParam, lParam);
 
-                    if (_sessionActive || _suppressJUntilKeyUp)
+                    if (_sessionActive || _suppressHashUntilKeyUp)
                     {
-                        // Sowohl das erste J als auch Auto-Repeat vollständig
-                        // abfangen, damit weder Recall noch ein stray "j" erscheint.
+                        // Erstes Down und Auto-Repeat vollständig abfangen.
                         return new IntPtr(1);
                     }
 
-                    if (IsWinPhysicallyDown())
+                    if (IsControlPhysicallyDown())
                     {
                         BeginSession();
                         return new IntPtr(1);
                     }
 
-                    // Bei nahezu gleichzeitigem Anschlag kann J wenige Millisekunden
-                    // vor Win eintreffen. Ein sehr kurzes Puffern verhindert, dass das
-                    // erste Zeichen sichtbar wird. Bleibt Win aus, wird J unverändert
-                    // als injiziertes Ereignis nachgereicht.
-                    if (!wasAlreadyDown && !IsJPending())
-                        BeginPendingJ();
-                    if (IsJPending())
+                    // Bei nahezu gleichzeitigem Anschlag kann # wenige
+                    // Millisekunden vor Strg eintreffen. Kurz puffern und bei
+                    // ausbleibendem Strg unverändert per Scan-Code nachreichen.
+                    if (!wasAlreadyDown && !IsHashPending())
+                        BeginPendingHash();
+                    if (IsHashPending())
                         return new IntPtr(1);
                 }
                 else if (isUp)
                 {
-                    _jDown = false;
+                    _hashDown = false;
 
-                    if (ReplayPendingJTapIfNeeded())
-                    {
+                    if (ReplayPendingHashTapIfNeeded())
                         return new IntPtr(1);
-                    }
 
                     if (_sessionActive)
                         EndSession();
 
-                    if (_suppressJUntilKeyUp)
+                    if (_suppressHashUntilKeyUp)
                     {
-                        _suppressJUntilKeyUp = false;
+                        _suppressHashUntilKeyUp = false;
                         return new IntPtr(1);
                     }
 
-                    ClearJCommittedToSystem();
+                    ClearHashCommittedToSystem();
                 }
             }
 
@@ -288,135 +290,126 @@ namespace Lumi.Core
             (flags & LlkHfInjected) != 0 &&
             extraInfo == LumiInputMarker;
 
-        private bool IsWinPhysicallyDown() =>
-            _leftWinDown ||
-            _rightWinDown ||
-            (GetAsyncKeyState(VkLWin) & 0x8000) != 0 ||
-            (GetAsyncKeyState(VkRWin) & 0x8000) != 0;
+        private static bool IsControlKey(int virtualKey) =>
+            virtualKey == VkControl ||
+            virtualKey == VkLControl ||
+            virtualKey == VkRControl;
 
-        private bool TryHandleJBeforeWindows(bool leftWindowsKey)
+        private static bool IsHashKey(uint scanCode) =>
+            scanCode == HashKeyScanCode;
+
+        private void TrackControlKey(int virtualKey, bool isDown, bool isUp)
         {
-            var beginSession = false;
-            lock (_pendingJSync)
+            if (virtualKey == VkLControl)
+                _leftControlDown = isDown || (!isUp && _leftControlDown);
+            else if (virtualKey == VkRControl)
+                _rightControlDown = isDown || (!isUp && _rightControlDown);
+            else
+                _genericControlDown = isDown || (!isUp && _genericControlDown);
+        }
+
+        private bool IsAnyControlTrackedDown() =>
+            _leftControlDown || _rightControlDown || _genericControlDown;
+
+        private bool IsControlPhysicallyDown() =>
+            IsAnyControlTrackedDown() ||
+            (GetAsyncKeyState(VkLControl) & 0x8000) != 0 ||
+            (GetAsyncKeyState(VkRControl) & 0x8000) != 0 ||
+            (GetAsyncKeyState(VkControl) & 0x8000) != 0;
+
+        private void BeginPendingHashSessionIfPossible()
+        {
+            lock (_pendingHashSync)
             {
-                if (!_jDown)
-                    return false;
+                if (!_hashDown ||
+                    !_pendingHash ||
+                    _hashCommittedToSystem)
+                    return;
 
-                if (_pendingJ)
-                {
-                    _pendingJ = false;
-                    Interlocked.Increment(ref _pendingJGeneration);
-                    beginSession = true;
-                }
-                else if (!_jCommittedToSystem)
-                {
-                    return false;
-                }
-
-                if (leftWindowsKey)
-                    _suppressLeftWinUntilKeyUp = true;
-                else
-                    _suppressRightWinUntilKeyUp = true;
-
-                // Bei einem J, das erst nach dem Chord-Fenster an Windows ging,
-                // wird ein späteres Win nur abgeschirmt. So entsteht weder eine
-                // versehentliche Lumi-Session noch Windows Recall beim Auto-Repeat.
-                if (!beginSession)
-                    return true;
-
-                // Der Win-KeyDown wird in der umgekehrten Chord-Reihenfolge
-                // ebenfalls unterdrückt. Das Replay/Session-Entscheiden bleibt
-                // unter demselben Lock atomar gegenüber dem 55-ms-Timer.
-                BeginSession(windowsKeyWasForwarded: false);
-                return true;
+                _pendingHash = false;
+                Interlocked.Increment(ref _pendingHashGeneration);
+                BeginSession();
             }
         }
 
-        private void BeginPendingJ()
+        private void BeginPendingHash()
         {
             int generation;
-            lock (_pendingJSync)
+            lock (_pendingHashSync)
             {
-                _pendingJ = true;
-                generation = Interlocked.Increment(ref _pendingJGeneration);
+                _pendingHash = true;
+                generation = Interlocked.Increment(ref _pendingHashGeneration);
             }
-            _ = ReplayPendingJAsync(generation);
+            _ = ReplayPendingHashAsync(generation);
         }
 
-        private async Task ReplayPendingJAsync(int generation)
+        private async Task ReplayPendingHashAsync(int generation)
         {
             await Task.Delay(ChordGraceMs).ConfigureAwait(false);
 
-            lock (_pendingJSync)
+            lock (_pendingHashSync)
             {
-                if (!_pendingJ ||
-                    generation != Volatile.Read(ref _pendingJGeneration) ||
-                    !_jDown ||
+                if (!_pendingHash ||
+                    generation != Volatile.Read(ref _pendingHashGeneration) ||
+                    !_hashDown ||
                     _sessionActive ||
-                    IsWinPhysicallyDown())
+                    IsControlPhysicallyDown())
                     return;
 
-                _pendingJ = false;
-                _jCommittedToSystem = true;
-                ReplayJDown();
+                _pendingHash = false;
+                _hashCommittedToSystem = true;
+                ReplayHashDown();
             }
         }
 
-        private void CancelPendingJ()
+        private void CancelPendingHash()
         {
-            lock (_pendingJSync)
+            lock (_pendingHashSync)
             {
-                _pendingJ = false;
-                Interlocked.Increment(ref _pendingJGeneration);
+                _pendingHash = false;
+                Interlocked.Increment(ref _pendingHashGeneration);
             }
         }
 
-        private bool ReplayPendingJTapIfNeeded()
+        private bool ReplayPendingHashTapIfNeeded()
         {
-            lock (_pendingJSync)
+            lock (_pendingHashSync)
             {
-                if (!_pendingJ)
+                if (!_pendingHash)
                     return false;
 
-                _pendingJ = false;
-                Interlocked.Increment(ref _pendingJGeneration);
-                ReplayJTap();
+                _pendingHash = false;
+                Interlocked.Increment(ref _pendingHashGeneration);
+                ReplayHashTap();
                 return true;
             }
         }
 
-        private bool IsJPending()
+        private bool IsHashPending()
         {
-            lock (_pendingJSync)
-                return _pendingJ;
+            lock (_pendingHashSync)
+                return _pendingHash;
         }
 
-        private bool IsJCommittedToSystem()
+        private bool IsHashCommittedToSystem()
         {
-            lock (_pendingJSync)
-                return _jCommittedToSystem;
+            lock (_pendingHashSync)
+                return _hashCommittedToSystem;
         }
 
-        private void ClearJCommittedToSystem()
+        private void ClearHashCommittedToSystem()
         {
-            lock (_pendingJSync)
-                _jCommittedToSystem = false;
+            lock (_pendingHashSync)
+                _hashCommittedToSystem = false;
         }
 
-        private void BeginSession(bool windowsKeyWasForwarded = true)
+        private void BeginSession()
         {
             ForegroundWindowOnPress = GetForegroundWindow();
             _sessionActive = true;
             _longFired = false;
             _ignoreCurrentRelease = false;
-            _suppressJUntilKeyUp = true;
-
-            // Da Windows nur noch die Win-Taste sieht, würde es beim späteren
-            // Loslassen sonst das Startmenü öffnen. Ein kurzer injizierter
-            // Strg-Impuls markiert die Win-Sequenz als benutzt, ohne eine sichtbare
-            // Funktionstaste auszulösen.
-            if (windowsKeyWasForwarded)
-                NeutralizeWindowsKeySequence();
+            _suppressHashUntilKeyUp = true;
 
             var now = DateTime.UtcNow;
             if (_tapCount == 1 &&
@@ -441,8 +434,8 @@ namespace Lumi.Core
 
             if (!_sessionActive ||
                 generation != Volatile.Read(ref _sessionGeneration) ||
-                !_jDown ||
-                !IsWinPhysicallyDown())
+                !_hashDown ||
+                !IsControlPhysicallyDown())
                 return;
 
             _longFired = true;
@@ -470,24 +463,17 @@ namespace Lumi.Core
                 Dispatch(() => Raise(HotkeyEvent.ShortPressed));
         }
 
-        private static void NeutralizeWindowsKeySequence()
+        private static void ReplayHashDown() =>
+            SendSyntheticKeys(CreateScanCodeInput(HashKeyScanCode));
+
+        private static void ReplayHashTap()
         {
             SendSyntheticKeys(
-                CreateKeyboardInput(VkControl),
-                CreateKeyboardInput(VkControl, keyUp: true));
+                CreateScanCodeInput(HashKeyScanCode),
+                CreateScanCodeInput(HashKeyScanCode, keyUp: true));
         }
 
-        private static void ReplayJDown() =>
-            SendSyntheticKeys(CreateKeyboardInput(VkJ));
-
-        private static void ReplayJTap()
-        {
-            SendSyntheticKeys(
-                CreateKeyboardInput(VkJ),
-                CreateKeyboardInput(VkJ, keyUp: true));
-        }
-
-        private static INPUT CreateKeyboardInput(int virtualKey, bool keyUp = false) =>
+        private static INPUT CreateScanCodeInput(uint scanCode, bool keyUp = false) =>
             new()
             {
                 Type = InputKeyboard,
@@ -495,8 +481,8 @@ namespace Lumi.Core
                 {
                     Keyboard = new KEYBDINPUT
                     {
-                        VirtualKey = unchecked((ushort)virtualKey),
-                        Flags = keyUp ? KeyEventFKeyUp : 0,
+                        ScanCode = unchecked((ushort)scanCode),
+                        Flags = KeyEventFScanCode | (keyUp ? KeyEventFKeyUp : 0),
                         ExtraInfo = LumiInputMarker
                     }
                 }
@@ -519,7 +505,7 @@ namespace Lumi.Core
         public void Dispose()
         {
             Interlocked.Increment(ref _sessionGeneration);
-            CancelPendingJ();
+            CancelPendingHash();
             if (_hookId != IntPtr.Zero)
             {
                 UnhookWindowsHookEx(_hookId);

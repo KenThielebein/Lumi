@@ -11,10 +11,10 @@
     <RootNamespace>Lumi</RootNamespace>
     <ApplicationIcon>Assets\lumi.ico</ApplicationIcon>
     <!-- Lokaler Fallback. Release-Builds überschreiben diese Werte aus dem Git-Tag. -->
-    <Version>4.5.5</Version>
-    <AssemblyVersion>4.5.5.0</AssemblyVersion>
-    <FileVersion>4.5.5.0</FileVersion>
-    <InformationalVersion>4.5.5</InformationalVersion>
+    <Version>4.5.6</Version>
+    <AssemblyVersion>4.5.6.0</AssemblyVersion>
+    <FileVersion>4.5.6.0</FileVersion>
+    <InformationalVersion>4.5.6</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>

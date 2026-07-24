@@ -113,21 +113,11 @@ namespace Lumi.Services.TextManipulation
         {
             if (string.IsNullOrEmpty(text)) return;
 
-            // ── Schritt 1: Win-Taste im OS sauber freigeben ──────────────────
-            // Ein kurzer Strg-Impuls zwischen LWIN-Down und LWIN-Up verhindert,
-            // dass Windows das Startmenü öffnet, ohne eine Funktionstaste
-            // auszulösen, die Notebook-Hilfssoftware sichtbar behandeln könnte.
-            _input.Keyboard.KeyDown(VirtualKeyCode.CONTROL);
-            _input.Keyboard.KeyUp(VirtualKeyCode.LWIN);
-            _input.Keyboard.KeyUp(VirtualKeyCode.RWIN);
-            _input.Keyboard.KeyUp(VirtualKeyCode.CONTROL);
-
-            // Die Pipeline wartet bereits auf die physische Freigabe von Win+J.
-            // Ein kurzer Scheduler-/Message-Queue-Nachlauf genügt; die früheren
-            // 200 ms waren doppelt und bei jedem Diktat deutlich spürbar.
+            // Die Pipeline wartet bereits auf die physische Freigabe von Strg+#.
+            // Ein kurzer Scheduler-/Message-Queue-Nachlauf genügt.
             await Task.Delay(30);
 
-            // ── Schritt 2: Text direkt als Unicode-Tastatureingabe senden ────
+            // Text direkt als Unicode-Tastatureingabe senden.
             // Der Diktat- und Ersetzungspfad berührt die Zwischenablage nicht.
             // So bleibt ein zuvor kopierter Inhalt auch nach dem Diktat erhalten.
             await TypeUnicodeTextAsync(text);
@@ -307,17 +297,9 @@ namespace Lumi.Services.TextManipulation
                 await OnUi(() => { try { WpfClipboard.Clear(); } catch { } });
             }
 
-            // ── Stufe 2: Strg-Maskierung → Win kurz freigeben → Ctrl+C ────────────
+            // ── Stufe 2: Ctrl+C ─────────────────────────────────────────────
             // Funktioniert universell, auch für LibreOffice und Browser.
-            // Der WH_KEYBOARD_LL-Hook in HotkeyManager filtert injizierte
-            // Win-KeyUp-Events (LLKHF_INJECTED), damit die Session nicht
-            // vorzeitig endet.
-            _input.Keyboard.KeyDown(VirtualKeyCode.CONTROL);
-            _input.Keyboard.KeyUp(VirtualKeyCode.LWIN);
-            _input.Keyboard.KeyUp(VirtualKeyCode.RWIN);
-            _input.Keyboard.KeyUp(VirtualKeyCode.CONTROL);
-            await Task.Delay(60);   // OS Win-State verarbeiten lassen
-
+            // Strg+# ist hier bereits vollständig losgelassen.
             _input.Keyboard.ModifiedKeyStroke(VirtualKeyCode.CONTROL, VirtualKeyCode.VK_C);
             await Task.Delay(150);
 

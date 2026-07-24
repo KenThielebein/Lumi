@@ -13,8 +13,8 @@ Nach jeder erledigten Aufgabe:
 
 ## Aktueller Stand
 **Aktive Phase:** Phase 6 – Update-System & Release
-**Letzte Änderung:** 2026-07-24 – Win+J für OEM-Tastaturtreiber und Remoting-Eingaben repariert; Version 4.5.5 auf GitHub und der Website veröffentlicht
-**Nächste Aufgabe:** Version 4.5.5 auf dem betroffenen zweiten Rechner praktisch mit Win→J und J→Win testen; danach alternative Tastenkombination, NSIS-Installer, Win+H-Hinweis und Update-Check umsetzen
+**Letzte Änderung:** 2026-07-24 – Standard-Hotkey von Win+J auf Strg+# umgestellt, 64-Bit-SendInput korrigiert und Version 4.5.6 auf GitHub und der Website veröffentlicht
+**Nächste Aufgabe:** Version 4.5.6 auf den Zielrechnern praktisch mit linker/rechter Strg-Taste und langem Diktat testen; danach NSIS-Installer, Win+H-Hinweis und Update-Check umsetzen
 
 ---
 
@@ -36,7 +36,7 @@ Lauffähiges WPF-Fenster als transparente "Pille", zeigt/versteckt sich per Hotk
   - `Listening` – animierte Wellenform
   - `Processing` – Spinner
   - `Result` – Text-Anzeige
-- [x] `HotkeyManager`: Win+J registrieren via Low-Level Keyboard Hook (WH_KEYBOARD_LL)
+- [x] `HotkeyManager`: Strg+# registrieren via Low-Level Keyboard Hook (WH_KEYBOARD_LL)
 - [x] Timing-Logik: kurz (<200ms) = Toggle, lang (>200ms) = Push-to-Talk
 - [x] Doppel-Tap (<400ms) = Modus wechseln (loggt, noch kein Audio)
 - [x] Dreifach-Tap (<600ms) = Provider-Switch (loggt, noch nicht implementiert)
@@ -47,9 +47,9 @@ Lauffähiges WPF-Fenster als transparente "Pille", zeigt/versteckt sich per Hotk
 ### Akzeptanzkriterien
 - App startet ohne Fehler, kein Hauptfenster sichtbar ✅
 - Tray-Icon "Lumi" erscheint ✅
-- Win+J kurz → Pille erscheint/verschwindet (Toggle) ✅
-- Win+J halten → Pille erscheint, Wellenform-Animation läuft, beim Loslassen verschwindet sie ✅
-- Win+J doppelt → Modus wechselt (Debug-Log) ✅
+- Strg+# kurz → Pille erscheint/verschwindet (Toggle) ✅
+- Strg+# halten → Pille erscheint, Wellenform-Animation läuft, beim Loslassen verschwindet sie ✅
+- Strg+# doppelt → Modus wechselt (Debug-Log) ✅
 - Esc schließt die Pille ✅
 
 ---
@@ -113,7 +113,7 @@ Lauffähiges WPF-Fenster als transparente "Pille", zeigt/versteckt sich per Hotk
 - [x] Overlay größenveränderlich (Win32 HTBOTTOMRIGHT + ResizeMode=CanResize)
 - [x] Position & Größe wird gespeichert (WM_EXITSIZEMOVE → config.json)
 - [ ] Erster-Start-Wizard: Mikrofon testen, Hotkey testen
-- [ ] Hinweis auf Win+H (Microsoft Voice Typing) Konflikt
+- [ ] Hinweis auf Win+H (Microsoft Voice Typing)
 - [ ] Hotkey konfigurierbar machen
 - [ ] Kompatibilitätsmodus-Liste für problematische Apps (Gmail, Notion etc.)
 - [x] Modell-Auswahl in Einstellungen: ComboBox beliebte Modelle + 🔍 Vollsuche mit Preisen (OpenRouter API)
@@ -125,7 +125,7 @@ Lauffähiges WPF-Fenster als transparente "Pille", zeigt/versteckt sich per Hotk
 - [x] Freihand-Diktat per Mausbutton in der Pille
 - [x] Letzte fünf Diktate in der Pille ansehen, nachbearbeiten und kopieren
 - [x] Diktat-Umschalter: sofort am Cursor einfügen oder zuerst nachbearbeiten
-- [x] Push-to-talk-Diktat: natürliche Sprechpausen stoppen die Aufnahme nicht; Verarbeitung erst nach vollständigem Loslassen von Win+J
+- [x] Push-to-talk-Diktat: natürliche Sprechpausen stoppen die Aufnahme nicht; Verarbeitung erst nach vollständigem Loslassen von Strg+#
 - [x] Win+J vollständig im Low-Level-Hook abfangen, damit Windows 11 nicht Recall oder ein anderes Systemfenster öffnet
 - [x] Lange Diktate: STT-Timeout auf 180s pro Versuch, automatische Wiederholung und sichere WAV-Teilung ab 16 MB
 - [x] Diktate und bestätigte Ersetzungen direkt per Unicode-Tastatureingabe einfügen, ohne die Zwischenablage zu verändern
@@ -151,6 +151,10 @@ Lauffähiges WPF-Fenster als transparente "Pille", zeigt/versteckt sich per Hotk
 - [x] Rechnerabhängigen Recall-/Windows-Hello-Aufruf analysiert und behoben: fremd injizierte Win-/J-Eingaben werden verarbeitet, nur Lumi-eigene SendInput-Ereignisse werden per Marker übersprungen
 - [x] Version 4.5.5 lokal mit Klassifikationstest und Release-Build validiert
 - [x] Version 4.5.5 über Tag `v4.5.5` auf GitHub veröffentlicht und GitHub-Pages-Website aktualisiert
+- [x] Standard-Hotkey auf Strg+# umgestellt: linke/rechte Strg-Taste, #-vor-Strg-Puffer und unverändertes Replay normaler Rauteneingaben
+- [x] `SendInput`-Union für 64-Bit-Windows vervollständigt und den globalen Hotkey mit fünf realen Eingabesequenzen geprüft
+- [x] Version 4.5.6 lokal gebaut und Website vollständig auf Strg+# aktualisiert
+- [x] Version 4.5.6 über Tag `v4.5.6` auf GitHub veröffentlicht und GitHub-Pages-Website einschließlich Download aktualisiert
 - [x] Release-EXE (self-contained, win-x64, 156 MB) unter `src/bin/Release/.../publish/Lumi.exe`
 - [x] Statische Landingpage unter `website/index.html` mit Downloadlink, Nutzungserklärung und API-Key-Anleitung
 - [x] Landingpage für GitHub Pages vorbereitet: lokales Icon, `.nojekyll`, GitHub-Release-Downloadlink als Platzhalter
@@ -195,6 +199,8 @@ Lumi auf die beiden alltagstauglichen Kernfunktionen Diktat und Vorschlag konzen
 | 11 | Wenn J knapp vor Win eintraf, erschien erst „j“ und Lumi startete verzögert beim Auto-Repeat | ✅ Behoben in 4.5.4: J wird 55 ms gepuffert und bei ausbleibendem Win unverändert nachgereicht |
 | 12 | Ein Einfüge- oder später Chunkfehler konnte ein bereits transkribiertes Langdiktat unzugänglich machen | ✅ Behoben in 4.5.4: erkannte Texte bleiben in der Diktat-Historie; technische Metadaten können opt-in geloggt werden |
 | 13 | Auf Rechnern mit OEM-Tastaturdienst oder Remoting öffnete Win+J Windows Recall und danach Windows Hello | ✅ Behoben in 4.5.5: fremd injizierte Benutzereingaben werden nicht mehr pauschal ignoriert; nur Lumi-eigene SendInput-Ereignisse tragen einen Filtermarker |
+| 14 | Windows-Tastenkombinationen blieben abhängig von Windows-Version und Rechnerausstattung | ✅ Behoben in 4.5.6: Strg+# ersetzt Win+J vollständig; linke/rechte Strg-Taste und umgekehrte Anschlagreihenfolge sind getestet |
+| 15 | Die verkürzte `SendInput`-Union konnte auf 64-Bit-Windows synthetische Replay-Eingaben still verwerfen | ✅ Behoben in 4.5.6: vollständige INPUT-Union mit Maus-, Tastatur- und Hardwaregröße |
 
 ---
 
@@ -286,3 +292,7 @@ Lumi auf die beiden alltagstauglichen Kernfunktionen Diktat und Vorschlag konzen
 | 2026-07-24 | Version 4.5.4 veröffentlicht | GitHub-Release, Download-Fallback, README und GitHub-Pages-Website zeigen denselben freigegebenen Stand |
 | 2026-07-24 | Fremd injizierte Hotkey-Eingaben | Tastaturtreiber, OEM-Hotkeydienste und Remoting können echte Tasten als `LLKHF_INJECTED` liefern; Lumi filtert deshalb nur noch eigene SendInput-Ereignisse anhand des Markers `LUMI` |
 | 2026-07-24 | Version 4.5.5 | Rechnerübergreifende Win+J-/Recall-Korrektur als Patch-Release mit aktualisierter Website und Downloads |
+| 2026-07-24 | Strg+# als primärer Hotkey | Keine Windows-Taste, auf deutschen Tastaturen eindeutig; linke und rechte Strg-Taste funktionieren |
+| 2026-07-24 | Physische Rautentaste | Scan-Code `0x2B` statt layoutabhängigem Zeichen; 55-ms-Puffer deckt #-vor-Strg ab und reicht normale Rauteneingaben unverändert nach |
+| 2026-07-24 | Vollständige x64-SendInput-Union | Windows erwartet auf x64 die Größe der größten INPUT-Variante; Maus- und Hardwarefelder sichern die korrekte Strukturgröße |
+| 2026-07-24 | Version 4.5.6 | Neuer Hotkey, 64-Bit-Eingabekorrektur, Website und Downloads werden als Patch-Release gebündelt |

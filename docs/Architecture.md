@@ -51,7 +51,7 @@ Diese Datei beschreibt wie die Komponenten zusammenspielen. Halte dich an diese 
 
 [Hotkey Release]
     → AudioService.StopRecording() → byte[] wavData
-    → warten, bis Win und J physisch losgelassen sind
+    → warten, bis Strg und # physisch losgelassen sind
     → selectedText = TextManipulationService.GetSelectedTextAsync(sourceHwnd)
     → Overlay: State = Processing
     → GroqSTTClient.TranscribeAsync(wavData) → string rawCommand
@@ -74,7 +74,7 @@ Diese Datei beschreibt wie die Komponenten zusammenspielen. Halte dich an diese 
 
 [Hotkey Release]
     → AudioService.StopRecording() → byte[] wavData
-    → warten, bis Win und J physisch losgelassen sind
+    → warten, bis Strg und # physisch losgelassen sind
     → Overlay: State = Processing
     → GroqSTTClient.TranscribeAsync(wavData) → string rawText
     → MemoryService.ApplyVocabulary(rawText) → string dictatedText
@@ -85,7 +85,7 @@ Diese Datei beschreibt wie die Komponenten zusammenspielen. Halte dich an diese 
 
 Die VAD-Stille-Erkennung beendet ausschließlich das per Maus gestartete
 Freihand-Diktat. Eine Push-to-talk-Aufnahme bleibt auch während natürlicher
-Sprechpausen aktiv und stoppt sofort, sobald Win oder J losgelassen wird.
+Sprechpausen aktiv und stoppt sofort, sobald Strg oder # losgelassen wird.
 
 ---
 
@@ -94,7 +94,7 @@ Sprechpausen aktiv und stoppt sofort, sobald Win oder J losgelassen wird.
 ### Core
 ```csharp
 public class HotkeyManager : IDisposable
-// Fängt Win+J vollständig via WH_KEYBOARD_LL ab, bevor Windows Recall öffnet
+// Fängt Strg+# vollständig via WH_KEYBOARD_LL ab
 // Feuert Events basierend auf Tipp-Länge und -Frequenz:
 //   ShortPressed   → < 200ms  (Toggle)
 //   LongPressed    → > 200ms  (Push-to-Talk Beginn)
@@ -248,19 +248,18 @@ public class AppConfig
 private static extern IntPtr SetWindowsHookEx(
     int idHook, LowLevelKeyboardProc callback, IntPtr module, uint threadId);
 
-// Der Hook unterdrückt physische J-Down/Repeat/Up-Ereignisse der aktiven
-// Win+J-Sequenz. Ein kurzer injizierter Strg-Impuls verhindert, dass Windows
-// beim Loslassen der Win-Taste das Startmenü öffnet, ohne eine Funktionstaste
-// auszulösen. Trifft J wenige Millisekunden vor Win ein, hält ein 55-ms-
-// Chord-Puffer das erste J zurück und reicht es nur dann nach, wenn Win ausbleibt.
+// Der Hook unterdrückt physische #-Down/Repeat/Up-Ereignisse der aktiven
+// Strg+#-Sequenz. Trifft # wenige Millisekunden vor Strg ein, hält ein 55-ms-
+// Chord-Puffer die erste Rauteneingabe zurück und reicht sie nur dann per
+// physischem Scan-Code nach, wenn Strg ausbleibt.
 // Lumi-eigene SendInput-Ereignisse tragen einen Marker und werden vom Hook
 // übersprungen. Fremd injizierte Eingaben von OEM-Treibern oder Remoting werden
-// dagegen wie Benutzereingaben verarbeitet, damit Recall nicht durchrutscht.
+// dagegen wie Benutzereingaben verarbeitet. Die INPUT-Union hat auf x64 die
+// vollständige Windows-Größe, damit SendInput nicht still mit 0 abbricht.
 ```
 
-> ℹ️ Win+J öffnet in aktuellen Windows-11-Versionen Recall. Lumi verarbeitet
-> die Kombination daher vor Windows und reicht sie nicht an das System weiter.
-> Hotkey ist in den Einstellungen konfigurierbar falls gewünscht.
+> ℹ️ Lumi verwendet mit Strg+# keine Windows-Tastenkombination mehr. Die
+> physische Rautentaste bezieht sich auf das deutsche Tastaturlayout.
 
 ---
 
